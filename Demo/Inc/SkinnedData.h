@@ -72,7 +72,8 @@ public:
 	// that you were calling this several times with the same clipName at 
 	// the same timePos.
 	void GetFinalTransforms(const std::string& clipName, float timePos,
-		std::vector<DirectX::XMFLOAT4X4>& finalTransforms)const;
+		std::vector<DirectX::XMFLOAT4X4>& finalTransforms,
+		std::vector<DirectX::XMFLOAT4>& bonePositions)const;
 
 private:
 	// Gives parentIndex of ith bone.

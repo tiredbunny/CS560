@@ -50,7 +50,7 @@ SkinnedModel::~SkinnedModel()
 void SkinnedModelInstance::Update(float dt)
 {
 	TimePos += dt;
-	Model->SkinnedData.GetFinalTransforms(ClipName, TimePos, FinalTransforms);
+	Model->SkinnedData.GetFinalTransforms(ClipName, TimePos, FinalTransforms, BonePositions);
 
 	// Loop animation
 	if (TimePos > Model->SkinnedData.GetClipEndTime(ClipName))

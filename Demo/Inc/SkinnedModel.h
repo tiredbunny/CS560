@@ -33,6 +33,8 @@ struct SkinnedModelInstance
 	std::string ClipName;
 	DirectX::XMFLOAT4X4 World;
 	std::vector<DirectX::XMFLOAT4X4> FinalTransforms;
+	
+	std::vector<DirectX::XMFLOAT4> BonePositions;
 
 	void Update(float dt);
 };

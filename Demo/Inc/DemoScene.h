@@ -4,6 +4,11 @@
 #include "ConstantBuffer.h"
 #include "Shaders.h"
 #include "SkinnedModel.h"
+#include "CommonStates.h"
+#include <Effects.h>
+#include <PrimitiveBatch.h>
+#include <VertexTypes.h>
+
 struct Drawable;
 
 class DemoScene : public DemoBase
@@ -21,7 +26,7 @@ private:
 	std::unique_ptr<SkinnedModel> m_SkinnedModel;
 	SkinnedModelInstance m_SkinnedModelInstance;
 
-	BasicEffect m_BasicEffect;
+	BasicLightsEffect m_BasicEffect;
 	BasicSkinnedEffect m_SkinnedEffect;
 
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> m_SamplerAnisotropic;
@@ -46,6 +51,13 @@ private:
 	PointLight m_PointLight;
 	SpotLight m_SpotLight;
 
+
+	//Basic effect stuff for debug drawing
+	std::unique_ptr<DirectX::PrimitiveBatch<DirectX::VertexPositionColor>> m_PrimitiveBatch;
+	std::unique_ptr<DirectX::BasicEffect> m_DebugBasicEffect;
+	Microsoft::WRL::ComPtr<ID3D11InputLayout> m_DebugBasicEffectInputLayout;
+
+	std::unique_ptr<DirectX::CommonStates> m_CommonStates;
 
 public:
 	explicit DemoScene(const HWND& hwnd);

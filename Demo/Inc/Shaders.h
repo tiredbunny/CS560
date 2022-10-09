@@ -51,7 +51,7 @@ public:
 	}
 };
 
-class BasicEffect : PipelineShaderObjects
+class BasicLightsEffect : PipelineShaderObjects
 {
 private:
 	struct VS_PS_CbPerObject
@@ -83,11 +83,11 @@ private:
 	ConstantBuffer<VS_PS_CbPerObject> m_CbPerObject;
 	ConstantBuffer<PS_CbPerFrame> m_CbPerFrame;
 public:
-	BasicEffect() = default;
-	BasicEffect(const BasicEffect&) = delete;
-	BasicEffect& operator=(const BasicEffect&) = delete;
+	BasicLightsEffect() = default;
+	BasicLightsEffect(const BasicLightsEffect&) = delete;
+	BasicLightsEffect& operator=(const BasicLightsEffect&) = delete;
 
-	BasicEffect(ID3D11Device* device, const	Microsoft::WRL::ComPtr<ID3D11InputLayout>& inputLayout) 
+	BasicLightsEffect(ID3D11Device* device, const	Microsoft::WRL::ComPtr<ID3D11InputLayout>& inputLayout) 
 	{ 
 		Create(device, inputLayout); 
 	}
@@ -159,8 +159,8 @@ private:
 	ConstantBuffer<VS_CbSkinned> m_CbSkinned;
 public:
 	BasicSkinnedEffect() = default;
-	BasicSkinnedEffect(const BasicEffect&) = delete;
-	BasicSkinnedEffect& operator=(const BasicEffect&) = delete;
+	BasicSkinnedEffect(const BasicLightsEffect&) = delete;
+	BasicSkinnedEffect& operator=(const BasicLightsEffect&) = delete;
 
 	BasicSkinnedEffect(ID3D11Device* device, const	Microsoft::WRL::ComPtr<ID3D11InputLayout>& inputLayout)
 	{
