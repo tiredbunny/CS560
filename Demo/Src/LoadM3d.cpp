@@ -254,16 +254,19 @@ void M3DLoader::ReadBoneKeyframes(std::ifstream& fin, UINT numBones, BoneAnimati
 		float t = 0.0f;
 		XMFLOAT3 p(0.0f, 0.0f, 0.0f);
 		XMFLOAT3 s(1.0f, 1.0f, 1.0f);
-		XMFLOAT4 q(0.0f, 0.0f, 0.0f, 1.0f);
+		//XMFLOAT4 q(0.0f, 0.0f, 0.0f, 1.0f);
+		Quaternion q;
+		q.vec = SimpleMath::Vector4(0.0f, 0.0f, 0.0f, 1.0f);
+
 		fin >> ignore >> t;
 		fin >> ignore >> p.x >> p.y >> p.z;
 		fin >> ignore >> s.x >> s.y >> s.z;
-		fin >> ignore >> q.x >> q.y >> q.z >> q.w;
+		fin >> ignore >> q.vec.x >> q.vec.y >> q.vec.z >> q.vec.w;
 
 		boneAnimation.Keyframes[i].TimePos = t;
-		boneAnimation.Keyframes[i].Translation = p;
-		boneAnimation.Keyframes[i].Scale = s;
-		boneAnimation.Keyframes[i].RotationQuat = q;
+		boneAnimation.Keyframes[i].vqs.Vector = p;
+		boneAnimation.Keyframes[i].vqs.Scale = s;
+		boneAnimation.Keyframes[i].vqs.Quat = q;
 	}
 
 	fin >> ignore; // }

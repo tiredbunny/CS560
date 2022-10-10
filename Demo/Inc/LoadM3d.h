@@ -1,5 +1,4 @@
-#ifndef LOADM3D_H
-#define LOADM3D_H
+#pragma once
 
 #include "MeshGeometry.h"
 #include "SkinnedData.h"
@@ -41,6 +40,3 @@ private:
 	void ReadBoneKeyframes(std::ifstream& fin, UINT numBones, BoneAnimation& boneAnimation);
 };
 
-
-
-#endif // LOADM3D_H

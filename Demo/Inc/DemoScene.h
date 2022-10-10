@@ -8,6 +8,7 @@
 #include <Effects.h>
 #include <PrimitiveBatch.h>
 #include <VertexTypes.h>
+#include "Camera.h"
 
 struct Drawable;
 
@@ -16,7 +17,6 @@ class DemoScene : public DemoBase
 private:
 	using Super = DemoBase;
 
-	std::unique_ptr<Drawable> m_DrawableBox;
 	std::unique_ptr<Drawable> m_DrawableSphere;
 	std::unique_ptr<Drawable> m_DrawableTorus;
 	std::unique_ptr<Drawable> m_DrawableTeapot;
@@ -29,23 +29,8 @@ private:
 	BasicLightsEffect m_BasicEffect;
 	BasicSkinnedEffect m_SkinnedEffect;
 
-	Microsoft::WRL::ComPtr<ID3D11SamplerState> m_SamplerAnisotropic;
-
-	Microsoft::WRL::ComPtr<ID3D11BlendState> m_BSTransparent;
-	Microsoft::WRL::ComPtr<ID3D11BlendState> m_BSNoColorWrite;
-	Microsoft::WRL::ComPtr<ID3D11BlendState> m_BSAlphaToCoverage;
-
-	Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_RSCullNone;
-	Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_RSWireframe;
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_RSFrontCounterCW;
 
-	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_DSSNoDepthWrite;
-	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_DSSMarkPixels;
-	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_DSSDrawMarkedOnly;
-	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> m_DSSNoDoubleBlend;
-
-	DirectX::XMFLOAT4X4 m_CameraView;
-	DirectX::XMFLOAT4X4 m_CameraProjection;
 
 	DirectionalLight m_DirLight;
 	PointLight m_PointLight;
@@ -59,6 +44,8 @@ private:
 
 	std::unique_ptr<DirectX::CommonStates> m_CommonStates;
 
+	Camera m_Camera;
+	POINT m_LastMousePos;
 public:
 	explicit DemoScene(const HWND& hwnd);
 	DemoScene(const DemoScene&) = delete;
@@ -67,6 +54,10 @@ public:
 	bool Initialize() override;
 	void UpdateScene(float dt) override;
 	void DrawScene() override;
+
+	void OnMouseDown(WPARAM btnState, int x, int y);
+	void OnMouseUp(WPARAM btnState, int x, int y);
+	void OnMouseMove(WPARAM btnState, int x, int y);
 private:
 	void Clear();
 	void Present();

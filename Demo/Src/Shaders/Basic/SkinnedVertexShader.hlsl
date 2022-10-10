@@ -19,7 +19,6 @@ VertexOut main( VertexIn vin )
 { 
     VertexOut vout;
 
-	// Init array or else we get strange warnings about SV_POSITION.
 	float weights[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 	weights[0] = vin.Weights.x;
 	weights[1] = vin.Weights.y;
@@ -31,9 +30,8 @@ VertexOut main( VertexIn vin )
 
 	for (int i = 0; i < 4; ++i)
 	{
-		// Assume no nonuniform scaling when transforming normals, so 
-		// that we do not have to use the inverse-transpose.
-
+        // Assume no nonuniform scaling when transforming normals, so 
+        // that we do not have to use the inverse-transpose.
 		posL += weights[i] * mul(float4(vin.PosL, 1.0f), gBoneTransforms[vin.BoneIndices[i]]).xyz;
 		normalL += weights[i] * mul(vin.NormalL, (float3x3)gBoneTransforms[vin.BoneIndices[i]]);
 	}

@@ -1,11 +1,4 @@
-//***************************************************************************************
-// MathHelper.h by Frank Luna (C) 2011 All Rights Reserved.
-//
-// Helper math class.
-//***************************************************************************************
-
-#ifndef MATHHELPER_H
-#define MATHHELPER_H
+#pragma once
 
 #include <Windows.h>
 #include <DirectXMath.h>
@@ -72,5 +65,3 @@ public:
 
 
 };
-
-#endif // MATHHELPER_H

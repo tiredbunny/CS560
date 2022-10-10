@@ -1,5 +1,4 @@
-#ifndef SKINNEDMODEL_H
-#define SKINNEDMODEL_H
+#pragma once
 
 #include "SkinnedData.h"
 #include "MeshGeometry.h"
@@ -38,5 +37,3 @@ struct SkinnedModelInstance
 
 	void Update(float dt);
 };
-
-#endif // SKINNEDMODEL_H

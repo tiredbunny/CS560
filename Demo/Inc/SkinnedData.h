@@ -1,24 +1,38 @@
-#ifndef SKINNEDDATA_H
-#define SKINNEDDATA_H
+#pragma once
 
 #include <DirectXMath.h>
 #include <map>
 #include <vector>
 #include <Windows.h>
 #include <string>
+#include "Quaternion.h"
+
+struct VQS
+{
+	VQS() :
+		Vector(0.0f, 0.0f, 0.0f),
+		Scale(1.0f, 1.0f, 1.0f)
+	{
+		
+	}
+	DirectX::XMFLOAT3 Vector;
+	DirectX::XMFLOAT3 Scale; //always uniform
+	Quaternion Quat;
+};
+
 
 ///<summary>
 /// A Keyframe defines the bone transformation at an instant in time.
 ///</summary>
+/// 
 struct Keyframe
 {
 	Keyframe();
 	~Keyframe();
 
 	float TimePos;
-	DirectX::XMFLOAT3 Translation;
-	DirectX::XMFLOAT3 Scale;
-	DirectX::XMFLOAT4 RotationQuat;
+
+	VQS vqs;
 };
 
 ///<summary>
@@ -40,7 +54,6 @@ struct BoneAnimation
 };
 
 ///<summary>
-/// Examples of AnimationClips are "Walk", "Run", "Attack", "Defend".
 /// An AnimationClip requires a BoneAnimation for every bone to form
 /// the animation clip.    
 ///</summary>
@@ -68,14 +81,11 @@ public:
 		std::vector<DirectX::XMFLOAT4X4>& boneOffsets,
 		std::map<std::string, AnimationClip>& animations);
 
-	// In a real project, you'd want to cache the result if there was a chance
-	// that you were calling this several times with the same clipName at 
-	// the same timePos.
 	void GetFinalTransforms(const std::string& clipName, float timePos,
 		std::vector<DirectX::XMFLOAT4X4>& finalTransforms,
 		std::vector<DirectX::XMFLOAT4>& bonePositions)const;
 
-private:
+public:
 	// Gives parentIndex of ith bone.
 	std::vector<int> mBoneHierarchy;
 
@@ -83,5 +93,3 @@ private:
 
 	std::map<std::string, AnimationClip> mAnimations;
 };
-
-#endif // SKINNEDDATA_H

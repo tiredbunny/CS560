@@ -25,23 +25,11 @@
     <Filter Include="Source Files\imgui">
       <UniqueIdentifier>{35a9d8fc-0008-4f2f-8aa8-0bbaaf2ac299}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Shaders\Simple">
-      <UniqueIdentifier>{53821536-f03f-4260-bdb4-31f09a534bb7}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Shaders\Billboard">
-      <UniqueIdentifier>{ef237477-16cd-466a-b814-08b27d4bfdde}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
     <None Include="Src\Shaders\Basic\Common.hlsli">
       <Filter>Shaders\Basic</Filter>
-    </None>
-    <None Include="Src\Shaders\Simple\Common.hlsli">
-      <Filter>Shaders\Simple</Filter>
-    </None>
-    <None Include="Src\Shaders\Billboard\Common.hlsli">
-      <Filter>Shaders\Billboard</Filter>
     </None>
     <None Include="Src\Shaders\Lighting.hlsli">
       <Filter>Shaders</Filter>
@@ -121,6 +109,12 @@
     <ClInclude Include="Inc\DebugDraw.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Inc\Camera.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Inc\Quaternion.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Src\DemoBase.cpp">
@@ -186,6 +180,9 @@
     <ClCompile Include="Src\DebugDraw.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Src\Camera.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Src\Shaders\Basic\PixelShader.hlsl">
@@ -193,24 +190,6 @@
     </FxCompile>
     <FxCompile Include="Src\Shaders\Basic\VertexShader.hlsl">
       <Filter>Shaders\Basic</Filter>
-    </FxCompile>
-    <FxCompile Include="Src\Shaders\Simple\PixelShader.hlsl">
-      <Filter>Shaders\Simple</Filter>
-    </FxCompile>
-    <FxCompile Include="Src\Shaders\Simple\VertexShader.hlsl">
-      <Filter>Shaders\Simple</Filter>
-    </FxCompile>
-    <FxCompile Include="Src\Shaders\Billboard\VertexShader.hlsl">
-      <Filter>Shaders\Billboard</Filter>
-    </FxCompile>
-    <FxCompile Include="Src\Shaders\Billboard\PixelShader.hlsl">
-      <Filter>Shaders\Billboard</Filter>
-    </FxCompile>
-    <FxCompile Include="Src\Shaders\Billboard\GeometryShader.hlsl">
-      <Filter>Shaders\Billboard</Filter>
-    </FxCompile>
-    <FxCompile Include="Src\Shaders\SimpleCompute.hlsl">
-      <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="Src\Shaders\Basic\SkinnedVertexShader.hlsl">
       <Filter>Shaders\Basic</Filter>

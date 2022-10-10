@@ -7,9 +7,7 @@ using namespace DirectX;
 
 Keyframe::Keyframe()
 	: TimePos(0.0f),
-	Translation(0.0f, 0.0f, 0.0f),
-	Scale(1.0f, 1.0f, 1.0f),
-	RotationQuat(0.0f, 0.0f, 0.0f, 1.0f)
+	vqs()
 {
 }
 
@@ -35,18 +33,18 @@ void BoneAnimation::Interpolate(float t, XMFLOAT4X4& M)const
 {
 	if (t <= Keyframes.front().TimePos)
 	{
-		XMVECTOR S = XMLoadFloat3(&Keyframes.front().Scale);
-		XMVECTOR P = XMLoadFloat3(&Keyframes.front().Translation);
-		XMVECTOR Q = XMLoadFloat4(&Keyframes.front().RotationQuat);
+		XMVECTOR S = XMLoadFloat3(&Keyframes.front().vqs.Scale);
+		XMVECTOR P = XMLoadFloat3(&Keyframes.front().vqs.Vector);
+		XMVECTOR Q = XMLoadFloat4(&Keyframes.front().vqs.Quat.vec);
 
 		XMVECTOR zero = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
 		XMStoreFloat4x4(&M, XMMatrixAffineTransformation(S, zero, Q, P));
 	}
 	else if (t >= Keyframes.back().TimePos)
 	{
-		XMVECTOR S = XMLoadFloat3(&Keyframes.back().Scale);
-		XMVECTOR P = XMLoadFloat3(&Keyframes.back().Translation);
-		XMVECTOR Q = XMLoadFloat4(&Keyframes.back().RotationQuat);
+		XMVECTOR S = XMLoadFloat3(&Keyframes.back().vqs.Scale);
+		XMVECTOR P = XMLoadFloat3(&Keyframes.back().vqs.Vector);
+		XMVECTOR Q = XMLoadFloat4(&Keyframes.back().vqs.Quat.vec);
 
 		XMVECTOR zero = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
 		XMStoreFloat4x4(&M, XMMatrixAffineTransformation(S, zero, Q, P));
@@ -59,21 +57,21 @@ void BoneAnimation::Interpolate(float t, XMFLOAT4X4& M)const
 			{
 				float lerpPercent = (t - Keyframes[i].TimePos) / (Keyframes[i + 1].TimePos - Keyframes[i].TimePos);
 
-				XMVECTOR s0 = XMLoadFloat3(&Keyframes[i].Scale);
-				XMVECTOR s1 = XMLoadFloat3(&Keyframes[i + 1].Scale);
+				XMVECTOR s0 = XMLoadFloat3(&Keyframes[i].vqs.Scale);
+				XMVECTOR s1 = XMLoadFloat3(&Keyframes[i + 1].vqs.Scale);
 
-				XMVECTOR p0 = XMLoadFloat3(&Keyframes[i].Translation);
-				XMVECTOR p1 = XMLoadFloat3(&Keyframes[i + 1].Translation);
+				XMVECTOR p0 = XMLoadFloat3(&Keyframes[i].vqs.Vector);
+				XMVECTOR p1 = XMLoadFloat3(&Keyframes[i + 1].vqs.Vector);
 
-				XMVECTOR q0 = XMLoadFloat4(&Keyframes[i].RotationQuat);
-				XMVECTOR q1 = XMLoadFloat4(&Keyframes[i + 1].RotationQuat);
+				Quaternion q0 = Keyframes[i].vqs.Quat;
+				Quaternion q1 = Keyframes[i + 1].vqs.Quat;
 
+				XMVECTOR V = XMVectorLerp(p0, p1, lerpPercent);
+				Quaternion Q = Quaternion::Slerp(q0, q1, lerpPercent);
 				XMVECTOR S = XMVectorLerp(s0, s1, lerpPercent);
-				XMVECTOR P = XMVectorLerp(p0, p1, lerpPercent);
-				XMVECTOR Q = XMQuaternionSlerp(q0, q1, lerpPercent);
 
 				XMVECTOR zero = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
-				XMStoreFloat4x4(&M, XMMatrixAffineTransformation(S, zero, Q, P));
+				XMStoreFloat4x4(&M, XMMatrixAffineTransformation(S, zero, Q.vec, V));
 
 				break;
 			}

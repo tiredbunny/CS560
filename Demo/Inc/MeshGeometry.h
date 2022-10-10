@@ -1,5 +1,4 @@
-#ifndef MESHGEOMETRY_H
-#define MESHGEOMETRY_H
+#pragma once
 
 #include <d3d11.h>
 #include <Windows.h>
@@ -72,5 +71,3 @@ void MeshGeometry::SetVertices(ID3D11Device* device, const VertexType* vertices,
 
 	DX::ThrowIfFailed(device->CreateBuffer(&vbd, &vinitData, &mVB));
 }
-
-#endif // MESHGEOMETRY_H

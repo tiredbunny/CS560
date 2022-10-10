@@ -8,6 +8,7 @@
 #include "imgui_impl_dx11.h"
 #include "Drawable.h"
 #include "Vertex.h"
+#include "Camera.h"
 #include "MathHelper.h"
 #include <VertexTypes.h>
 #include <DirectXHelpers.h>
@@ -28,7 +29,6 @@ using namespace DirectX;
 DemoScene::DemoScene(const HWND& hwnd) :
 	Super(hwnd)
 {
-	m_DrawableBox = std::make_unique<Drawable>();
 	m_DrawableSphere = std::make_unique<Drawable>();
 	m_DrawableTorus = std::make_unique<Drawable>();
 	m_DrawableTeapot = std::make_unique<Drawable>();
@@ -44,13 +44,14 @@ DemoScene::DemoScene(const HWND& hwnd) :
 	m_SpotLight.SpotPower = 2.0f;
 
 	//Setup some material properties other than default
-	m_DrawableBox->Material.Ambient = XMFLOAT4(0.35f, 0.35f, 0.35f, 1.0f);
 	m_DrawableSphere->Material.Ambient = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
 	m_DrawableSphere->Material.Specular = XMFLOAT4(1.0f, 1.0f, 1.0f, 64.0f);
 	m_DrawableTorus->Material.Specular = XMFLOAT4(0.0f, 0.0f, 0.0f, 64.0f);
 	m_DrawableTeapot->Material.Specular = XMFLOAT4(1.0f, 1.0f, 1.0f, 32.0f);
 	m_DrawableGrid->Material.Diffuse = XMFLOAT4(0.4f, 0.4f, 0.4f, 1.0f);
 	m_DrawableGrid->Material.Ambient = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+
+	m_Camera.SetPosition(-2.0f, 5.0f, -20.0f);
 }
 
 bool DemoScene::CreateDeviceDependentResources()
@@ -77,7 +78,6 @@ bool DemoScene::CreateDeviceDependentResources()
 	);
 
 	m_SkinnedEffect.Create(m_Device.Get(), layoutPosNormalTexSkinned);
-
 	m_SkinnedModel = std::make_unique<SkinnedModel>(m_Device.Get(), "Models\\soldier.m3d", L"Textures\\");
 	m_SkinnedModelInstance.Model = m_SkinnedModel.get();
 	m_SkinnedModelInstance.TimePos = 0.0f;
@@ -85,8 +85,8 @@ bool DemoScene::CreateDeviceDependentResources()
 	m_SkinnedModelInstance.FinalTransforms.resize(m_SkinnedModel->SkinnedData.BoneCount());
 	m_SkinnedModelInstance.BonePositions.resize(m_SkinnedModel->SkinnedData.BoneCount());
 
-	m_PrimitiveBatch = std::make_unique<PrimitiveBatch<VertexPositionColor>>(m_ImmediateContext.Get());
 
+	m_PrimitiveBatch = std::make_unique<PrimitiveBatch<VertexPositionColor>>(m_ImmediateContext.Get());
 	m_DebugBasicEffect = std::make_unique<BasicEffect>(m_Device.Get());
 	m_DebugBasicEffect->SetVertexColorEnabled(true);
 
@@ -98,9 +98,6 @@ bool DemoScene::CreateDeviceDependentResources()
 	m_CommonStates = std::make_unique<CommonStates>(m_Device.Get());
 
 #pragma region Load Textures
-	if FAILED(CreateDDSTextureFromFile(m_Device.Get(), m_ImmediateContext.Get(), L"Textures\\crate.dds", 0, m_DrawableBox->TextureSRV.ReleaseAndGetAddressOf()))
-		return false;
-
 	if FAILED(CreateDDSTextureFromFile(m_Device.Get(), m_ImmediateContext.Get(), L"Textures\\mipmaps.dds", 0, m_DrawableGrid->TextureSRV.ReleaseAndGetAddressOf()))
 		return false;
 
@@ -118,89 +115,10 @@ bool DemoScene::CreateDeviceDependentResources()
 #pragma region States Creation
 	CD3D11_DEFAULT d3dDefault;
 	{
-		CD3D11_SAMPLER_DESC desc(d3dDefault);
-		desc.Filter = D3D11_FILTER_ANISOTROPIC;
-		desc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-		desc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-		desc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-		desc.MaxAnisotropy = 8;
-
-		if FAILED(m_Device->CreateSamplerState(&desc, m_SamplerAnisotropic.ReleaseAndGetAddressOf()))
-			return false;
-	}
-	{
-		CD3D11_BLEND_DESC desc(d3dDefault);
-		desc.RenderTarget[0].BlendEnable = TRUE;
-		desc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
-		desc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
-		desc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
-
-		if FAILED(m_Device->CreateBlendState(&desc, m_BSTransparent.ReleaseAndGetAddressOf()))
-			return false;
-
-		desc = CD3D11_BLEND_DESC(d3dDefault);
-		desc.RenderTarget[0].RenderTargetWriteMask = NULL;
-
-		if FAILED(m_Device->CreateBlendState(&desc, m_BSNoColorWrite.ReleaseAndGetAddressOf()))
-			return false;
-
-		desc = CD3D11_BLEND_DESC(d3dDefault);
-		desc.AlphaToCoverageEnable = TRUE;
-
-		if FAILED(m_Device->CreateBlendState(&desc, m_BSAlphaToCoverage.ReleaseAndGetAddressOf()))
-			return false;
-	}
-	{
 		CD3D11_RASTERIZER_DESC desc(d3dDefault);
-		desc.CullMode = D3D11_CULL_NONE;
-
-		if FAILED(m_Device->CreateRasterizerState(&desc, m_RSCullNone.ReleaseAndGetAddressOf()))
-			return false;
-		
-		desc = CD3D11_RASTERIZER_DESC(d3dDefault);
-		desc.FillMode = D3D11_FILL_WIREFRAME;
-
-		if FAILED(m_Device->CreateRasterizerState(&desc, m_RSWireframe.ReleaseAndGetAddressOf()))
-			return false;
-
-		desc = CD3D11_RASTERIZER_DESC(d3dDefault);
 		desc.FrontCounterClockwise = TRUE;
 
 		if FAILED(m_Device->CreateRasterizerState(&desc, m_RSFrontCounterCW.ReleaseAndGetAddressOf()))
-			return false;
-	}
-	{
-		CD3D11_DEPTH_STENCIL_DESC desc(d3dDefault);
-		desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
-
-		if FAILED(m_Device->CreateDepthStencilState(&desc, m_DSSNoDepthWrite.ReleaseAndGetAddressOf()))
-			return false;
-
-		desc = CD3D11_DEPTH_STENCIL_DESC(d3dDefault);
-		desc.StencilEnable = TRUE;
-		desc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
-		desc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
-		desc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_REPLACE;
-		desc.BackFace = desc.FrontFace;
-
-		if FAILED(m_Device->CreateDepthStencilState(&desc, m_DSSMarkPixels.ReleaseAndGetAddressOf()))
-			return false;
-
-		desc = CD3D11_DEPTH_STENCIL_DESC(d3dDefault);
-		desc.StencilEnable = TRUE;
-		desc.FrontFace.StencilFunc = D3D11_COMPARISON_EQUAL;
-		desc.BackFace = desc.FrontFace;
-
-		if FAILED(m_Device->CreateDepthStencilState(&desc, m_DSSDrawMarkedOnly.ReleaseAndGetAddressOf()))
-			return false;
-
-		desc = CD3D11_DEPTH_STENCIL_DESC(d3dDefault);
-		desc.StencilEnable = TRUE;
-		desc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_INCR_SAT;
-		desc.FrontFace.StencilFunc = D3D11_COMPARISON_EQUAL;
-		desc.BackFace = desc.FrontFace;
-
-		if FAILED(m_Device->CreateDepthStencilState(&desc, m_DSSNoDoubleBlend.ReleaseAndGetAddressOf()))
 			return false;
 	}
 #pragma endregion
@@ -217,9 +135,6 @@ void DemoScene::CreateBuffers()
 	
 	GeometricPrimitive::CreateSphere(vertices, indices, 3.0f, 16, false);
 	m_DrawableSphere->Create(m_Device.Get(), vertices, indices);
-
-	GeometricPrimitive::CreateBox(vertices, indices, XMFLOAT3(2.5f, 2.5f, 2.5f), false);
-	m_DrawableBox->Create(m_Device.Get(), vertices, indices);
 
 	GeometricPrimitive::CreateTorus(vertices, indices, 3.0f, 1.0f, 32, false);
 	m_DrawableTorus->Create(m_Device.Get(), vertices, indices);
@@ -244,31 +159,62 @@ bool DemoScene::Initialize()
 	return true;
 }
 
+void DemoScene::OnMouseDown(WPARAM btnState, int x, int y)
+{
+	m_LastMousePos.x = x;
+	m_LastMousePos.y = y;
+
+	SetCapture(m_MainWindow);
+}
+
+void DemoScene::OnMouseUp(WPARAM btnState, int x, int y)
+{
+	ReleaseCapture();
+}
+
+void DemoScene::OnMouseMove(WPARAM btnState, int x, int y)
+{
+	if ((btnState & MK_RBUTTON) != 0)
+	{
+		// Make each pixel correspond to a quarter of a degree.
+		float dx = XMConvertToRadians(0.25f * static_cast<float>(x - m_LastMousePos.x));
+		float dy = XMConvertToRadians(0.25f * static_cast<float>(y - m_LastMousePos.y));
+
+		m_Camera.Pitch(dy);
+		m_Camera.RotateY(dx);
+	}
+
+	m_LastMousePos.x = x;
+	m_LastMousePos.y = y;
+}
+
 void DemoScene::UpdateScene(float dt)
 {
 	Super::ImGui_NewFrame();
 
-	//values updated by ImGui widgets
-	static float cameraAngle = 0.0f;
-	static XMVECTOR initEyePos = XMVectorSet(0.0f, 7.0f, -20.0f, 1.0f);
-	static XMVECTOR focus = XMVectorSet(0, 0, 0, 1);
+	m_Camera.SetLens(XMConvertToRadians(60.0f), static_cast<float>(m_ClientWidth) / m_ClientHeight, 1.0f, 1000.0f);
+	
 
-	//build projection matrix
-	XMMATRIX proj = XMMatrixPerspectiveFovLH(XMConvertToRadians(60.0f), static_cast<float>(m_ClientWidth) / m_ClientHeight, 1.0f, 1000.0f);
-	XMStoreFloat4x4(&m_CameraProjection, proj);
+	if (GetAsyncKeyState('W') & 0x8000)
+		m_Camera.Walk(10.0f * dt);
 
-	//build view matrix
-	XMVECTOR up = XMVectorSet(0, 1, 0, 0);
-	XMVECTOR eyePosition = XMVector3Transform(initEyePos, XMMatrixRotationY(XMConvertToRadians(cameraAngle)));
-	XMMATRIX view = XMMatrixLookAtLH(eyePosition, focus, up);
-	XMStoreFloat4x4(&m_CameraView, view);
+	if (GetAsyncKeyState('S') & 0x8000)
+		m_Camera.Walk(-10.0f * dt);
+
+	if (GetAsyncKeyState('A') & 0x8000)
+		m_Camera.Strafe(-10.0f * dt);
+
+	if (GetAsyncKeyState('D') & 0x8000)
+		m_Camera.Strafe(10.0f * dt);
+
+	m_Camera.UpdateViewMatrix();
+
 
 	static float angle = 0.0f;
 	angle += 45.0f * dt;
 	
 	XMMATRIX rotateY = XMMatrixRotationY(XMConvertToRadians(angle));
 
-	m_DrawableBox->WorldTransform = Helpers::XMMatrixToStorage(rotateY * XMMatrixTranslation(-2, 2, 0));
 	m_DrawableTeapot->WorldTransform = Helpers::XMMatrixToStorage(rotateY * XMMatrixTranslation(2, 2, 10));
 	m_DrawableSphere->WorldTransform = Helpers::XMMatrixToStorage(rotateY * XMMatrixTranslation(3, 2, 0));
 	m_DrawableTorus->WorldTransform = Helpers::XMMatrixToStorage(rotateY * XMMatrixTranslation(-4, 2, 6));
@@ -276,19 +222,17 @@ void DemoScene::UpdateScene(float dt)
 	XMStoreFloat4x4(&m_DrawableSphere->TextureTransform, XMMatrixScaling(2.0f, 2.0f, 0.0f));
 	XMStoreFloat4x4(&m_DrawableGrid->TextureTransform, XMMatrixScaling(20.0f, 20.0f, 0.0f));
 
-
-	m_BasicEffect.SetEyePosition(eyePosition);
+	m_BasicEffect.SetEyePosition(m_Camera.GetPosition());
 	m_BasicEffect.SetDirectionalLight(m_DirLight);
 	m_BasicEffect.SetPointLight(m_PointLight);
 	m_BasicEffect.SetSpotLight(m_SpotLight);
 	m_BasicEffect.ApplyPerFrameConstants(m_ImmediateContext.Get());
 
-	m_SkinnedEffect.SetEyePosition(eyePosition);
+	m_SkinnedEffect.SetEyePosition(m_Camera.GetPosition());
 	m_SkinnedEffect.SetDirectionalLight(m_DirLight);
 	m_SkinnedEffect.SetPointLight(m_PointLight);
 	m_SkinnedEffect.SetSpotLight(m_SpotLight);
 	m_SkinnedEffect.ApplyPerFrameConstants(m_ImmediateContext.Get());
-
 
 	m_SkinnedModelInstance.Update(dt);
 
@@ -352,16 +296,6 @@ void DemoScene::UpdateScene(float dt)
 		}
 	}
 
-	if (ImGui::CollapsingHeader("Camera"))
-	{
-		ImGui::DragFloat3("EyePos", reinterpret_cast<float*>(&initEyePos), 1.0f, -100.0f, 100.0f, "%.2f");
-		ImGui::DragFloat3("Focus", reinterpret_cast<float*>(&focus), 1.0f, -100.0f, 100.0f), "%.2f";
-		
-		if (XMVector3Equal(initEyePos, XMVectorZero()))
-			initEyePos = XMVectorSet(0.0f, 0.0f, -10.0f, 1.0f);
-
-		ImGui::SliderFloat("Rotate-Y", &cameraAngle, 0.0f, 360.0f);
-	}
 	static XMFLOAT3 dirLightVec = m_DirLight.Direction;
 	if (ImGui::CollapsingHeader("Lights"))
 	{
@@ -464,16 +398,6 @@ void DemoScene::UpdateScene(float dt)
 			ImGui::TreePop();
 		}
 
-		if (ImGui::TreeNode("Box"))
-		{
-			ImGui::InputFloat4("Ambient##4", reinterpret_cast<float*>(&m_DrawableBox->Material.Ambient), 2);
-			ImGui::InputFloat4("Diffuse##4", reinterpret_cast<float*>(&m_DrawableBox->Material.Diffuse), 2);
-			ImGui::InputFloat4("Specular##4", reinterpret_cast<float*>(&m_DrawableBox->Material.Specular), 2);
-
-			ImGui::TreePop();
-		}
-
-
 		if (ImGui::TreeNode("Torus"))
 		{
 			ImGui::InputFloat4("Ambient##5", reinterpret_cast<float*>(&m_DrawableTorus->Material.Ambient), 2);
@@ -513,10 +437,19 @@ void DemoScene::UpdateScene(float dt)
 
 void DemoScene::Clear()
 {
-	static XMVECTOR backBufferColor = DirectX::Colors::AntiqueWhite;
-	ImGui::PushItemWidth(ImGui::GetColumnWidth() * 0.5f);
-	ImGui::ColorEdit4("clear color", reinterpret_cast<float*>(&backBufferColor));
-	ImGui::PopItemWidth();
+	static XMVECTOR backBufferColor = DirectX::Colors::Black;
+	
+	if (ImGui::Begin("Scene"))
+	{
+		ImGui::ColorEdit4("background", reinterpret_cast<float*>(&backBufferColor));
+		ImGui::End();
+	}
+
+	if (ImGui::Begin("Usage Instruction"))
+	{
+		ImGui::Text("Use WASD keys on Keyboard for movement.\nHold Right Click on Mouse to look around.");
+		ImGui::End();
+	}
 
 	m_ImmediateContext->ClearRenderTargetView(m_RenderTargetView.Get(), reinterpret_cast<float*>(&backBufferColor));
 	m_ImmediateContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
@@ -525,7 +458,7 @@ void DemoScene::Clear()
 void DemoScene::PrepareForRendering()
 {
 	m_BasicEffect.Bind(m_ImmediateContext.Get());
-	m_BasicEffect.SetSampler(m_ImmediateContext.Get(), m_SamplerAnisotropic.Get());
+	m_BasicEffect.SetSampler(m_ImmediateContext.Get(), m_CommonStates->AnisotropicWrap());
 
 	m_ImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
@@ -535,15 +468,22 @@ void DemoScene::DrawScene()
 {
 	Clear();
 	PrepareForRendering();
-
-	XMMATRIX viewProj = XMLoadFloat4x4(&m_CameraView) * XMLoadFloat4x4(&m_CameraProjection);
+	
+	XMMATRIX viewProj = m_Camera.GetView() * m_Camera.GetProj();
 	UINT stride = sizeof(GeometricPrimitive::VertexType);
 	UINT offset = 0;
+
+	//====================================== static objects ======================================//
 
 	static Drawable* drawables[] = { m_DrawableGrid.get(), m_DrawableTorus.get(),  m_DrawableTeapot.get(), m_DrawableSphere.get() };
 	for (auto const& it : drawables)
 	{
 		FillBasicEffect(it);
+
+		if (it == m_DrawableGrid.get())
+			m_ImmediateContext->RSSetState(m_CommonStates->Wireframe());
+		else
+			m_ImmediateContext->RSSetState(nullptr);
 
 		m_ImmediateContext->IASetVertexBuffers(0, 1, it->VertexBuffer.GetAddressOf(), &stride, &offset);
 		m_ImmediateContext->IASetIndexBuffer(it->IndexBuffer.Get(), it->IndexBufferFormat, 0);
@@ -551,64 +491,85 @@ void DemoScene::DrawScene()
 	}
 
 	
-	// Instance 1
-	m_ImmediateContext->RSSetState(m_RSFrontCounterCW.Get());
-	m_SkinnedEffect.Bind(m_ImmediateContext.Get());
-	m_SkinnedEffect.SetSampler(m_ImmediateContext.Get(), m_SamplerAnisotropic.Get());
-
-	m_SkinnedEffect.SetWorld(XMLoadFloat4x4(&m_SkinnedModelInstance.World));
-	m_SkinnedEffect.SetWorldViewProj(XMLoadFloat4x4(&m_SkinnedModelInstance.World) * viewProj);
-	m_SkinnedEffect.SetTextureTransform(XMMatrixIdentity());
-	m_SkinnedEffect.SetBoneTransforms(m_SkinnedModelInstance.FinalTransforms.data(), m_SkinnedModelInstance.FinalTransforms.size());
-
-	for (UINT subset = 0; subset < m_SkinnedModelInstance.Model->SubsetCount; ++subset)
-	{
-		m_SkinnedEffect.SetMaterial(m_SkinnedModelInstance.Model->Mat[subset]);
-		m_SkinnedEffect.SetTexture(m_ImmediateContext.Get(), m_SkinnedModelInstance.Model->DiffuseMapSRV[subset]);
+	//====================================== Skinned Model  ======================================//
 	
-		m_SkinnedEffect.Apply(m_ImmediateContext.Get());
-		m_SkinnedModelInstance.Model->ModelMesh.Draw(m_ImmediateContext.Get(), subset);
+	static bool drawSkinnedModel = true;
+	if (ImGui::Begin("Scene"))
+	{
+		ImGui::Checkbox("Draw Skinned Model", &drawSkinnedModel);
 
+		ImGui::End();
 	}
 
-	//====================================== debug drawing ======================================//
-
-	m_ImmediateContext->OMSetBlendState(m_CommonStates->Opaque(), nullptr, 0xFFFFFFFF);
-	m_ImmediateContext->OMSetDepthStencilState(m_CommonStates->DepthNone(), 0);
-	m_ImmediateContext->RSSetState(m_CommonStates->CullNone());
-
-	m_DebugBasicEffect->SetView(XMLoadFloat4x4(&m_CameraView));
-	m_DebugBasicEffect->SetProjection(XMLoadFloat4x4(&m_CameraProjection));
-	m_DebugBasicEffect->Apply(m_ImmediateContext.Get());
-
-	m_ImmediateContext->IASetInputLayout(m_DebugBasicEffectInputLayout.Get());
-
-	m_PrimitiveBatch->Begin();
-
-
-	for (int i = 0; i < m_SkinnedModelInstance.BonePositions.size() - 1; ++i)
+	if (drawSkinnedModel)
 	{
-		XMVECTOR origin = XMLoadFloat4(&m_SkinnedModelInstance.BonePositions[i]);
-		XMVECTOR direction = XMLoadFloat4(&m_SkinnedModelInstance.BonePositions[i + 1]) - origin;
+		m_ImmediateContext->RSSetState(m_RSFrontCounterCW.Get());
+		m_SkinnedEffect.Bind(m_ImmediateContext.Get());
+		m_SkinnedEffect.SetSampler(m_ImmediateContext.Get(), m_CommonStates->AnisotropicWrap());
 
-		DX::DrawRay(m_PrimitiveBatch.get(), origin, direction, false, Colors::Red);
+		m_SkinnedEffect.SetWorld(XMLoadFloat4x4(&m_SkinnedModelInstance.World));
+		m_SkinnedEffect.SetWorldViewProj(XMLoadFloat4x4(&m_SkinnedModelInstance.World) * viewProj);
+		m_SkinnedEffect.SetTextureTransform(XMMatrixIdentity());
+		m_SkinnedEffect.SetBoneTransforms(m_SkinnedModelInstance.FinalTransforms.data(), m_SkinnedModelInstance.FinalTransforms.size());
 
+		for (UINT subset = 0; subset < m_SkinnedModelInstance.Model->SubsetCount; ++subset)
+		{
+			m_SkinnedEffect.SetMaterial(m_SkinnedModelInstance.Model->Mat[subset]);
+			m_SkinnedEffect.SetTexture(m_ImmediateContext.Get(), m_SkinnedModelInstance.Model->DiffuseMapSRV[subset]);
+
+			m_SkinnedEffect.Apply(m_ImmediateContext.Get());
+			m_SkinnedModelInstance.Model->ModelMesh.Draw(m_ImmediateContext.Get(), subset);
+
+		}
+	}
+	
+
+	//====================================== bone line drawing ======================================//
+
+	static bool drawSkeleton = true;
+	if (ImGui::Begin("Scene"))
+	{
+		ImGui::Checkbox("Draw Skeleton", &drawSkeleton);
+
+		ImGui::End();
 	}
 
-	m_PrimitiveBatch->End();
+	if (drawSkeleton)
+	{
+		m_ImmediateContext->OMSetBlendState(m_CommonStates->Opaque(), nullptr, 0xFFFFFFFF);
+		m_ImmediateContext->OMSetDepthStencilState(m_CommonStates->DepthNone(), 0);
+		m_ImmediateContext->RSSetState(m_CommonStates->CullNone());
 
-	m_ImmediateContext->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
-	m_ImmediateContext->OMSetDepthStencilState(nullptr, 0);
-	m_ImmediateContext->RSSetState(nullptr);
+		m_DebugBasicEffect->SetView(m_Camera.GetView());
+		m_DebugBasicEffect->SetProjection(m_Camera.GetProj());
+		m_DebugBasicEffect->Apply(m_ImmediateContext.Get());
 
-	
+		m_ImmediateContext->IASetInputLayout(m_DebugBasicEffectInputLayout.Get());
+
+		m_PrimitiveBatch->Begin();
+
+		for (int i = 0; i < m_SkinnedModelInstance.BonePositions.size() - 1; ++i)
+		{
+			XMVECTOR origin = XMLoadFloat4(&m_SkinnedModelInstance.BonePositions[i]);
+			XMVECTOR direction = XMLoadFloat4(&m_SkinnedModelInstance.BonePositions[i + 1]) - origin;
+
+			if (m_SkinnedModelInstance.Model->SkinnedData.mBoneHierarchy[i + 1] == i)
+				DX::DrawRay(m_PrimitiveBatch.get(), origin, direction, false, Colors::Red);
+		}
+		m_PrimitiveBatch->End();
+
+		m_ImmediateContext->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
+		m_ImmediateContext->OMSetDepthStencilState(nullptr, 0);
+		m_ImmediateContext->RSSetState(nullptr);
+	}
+
 	ResetStates();
 	Present();
 }
 
 void DemoScene::FillBasicEffect(Drawable* drawable)
 {
-	XMMATRIX viewProj = XMLoadFloat4x4(&m_CameraView) * XMLoadFloat4x4(&m_CameraProjection);
+	XMMATRIX viewProj = m_Camera.GetView() * m_Camera.GetProj();
 
 	m_BasicEffect.SetWorld(drawable->GetWorld());
 	m_BasicEffect.SetWorldViewProj(drawable->GetWorld() * viewProj);
@@ -621,14 +582,7 @@ void DemoScene::FillBasicEffect(Drawable* drawable)
 
 void DemoScene::ResetStates()
 {
-	static bool bWireframe = false;
-	ImGui::Checkbox("Wireframe", &bWireframe);
-	
-	if (bWireframe)
-		m_ImmediateContext->RSSetState(m_RSWireframe.Get());
-	else
-		m_ImmediateContext->RSSetState(nullptr);
-
+	m_ImmediateContext->RSSetState(nullptr);
 	m_ImmediateContext->OMSetBlendState(nullptr, NULL, 0xffffffff);
 	m_ImmediateContext->OMSetDepthStencilState(nullptr, 0);
 }
