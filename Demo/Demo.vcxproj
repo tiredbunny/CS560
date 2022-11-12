@@ -192,6 +192,7 @@
     <ClInclude Include="Inc\LoadM3d.h" />
     <ClInclude Include="Inc\MathHelper.h" />
     <ClInclude Include="Inc\MeshGeometry.h" />
+    <ClInclude Include="Inc\Path.h" />
     <ClInclude Include="Inc\pch.h" />
     <ClInclude Include="Inc\Quaternion.h" />
     <ClInclude Include="Inc\Shaders.h" />
@@ -247,6 +248,7 @@
     <ClCompile Include="Src\main.cpp" />
     <ClCompile Include="Src\MathHelper.cpp" />
     <ClCompile Include="Src\MeshGeometry.cpp" />
+    <ClCompile Include="Src\Path.cpp" />
     <ClCompile Include="Src\pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

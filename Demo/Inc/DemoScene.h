@@ -9,6 +9,7 @@
 #include <PrimitiveBatch.h>
 #include <VertexTypes.h>
 #include "Camera.h"
+#include "Path.h"
 
 struct Drawable;
 
@@ -17,10 +18,8 @@ class DemoScene : public DemoBase
 private:
 	using Super = DemoBase;
 
-	std::unique_ptr<Drawable> m_DrawableSphere;
-	std::unique_ptr<Drawable> m_DrawableTorus;
-	std::unique_ptr<Drawable> m_DrawableTeapot;
 	std::unique_ptr<Drawable> m_DrawableGrid;
+	std::unique_ptr<Drawable> m_DrawableSphere;
 
 
 	std::unique_ptr<SkinnedModel> m_SkinnedModel;
@@ -67,4 +66,5 @@ private:
 	void ResetStates();
 	void FillBasicEffect(Drawable* drawable);
 	
+	Path m_Path;
 };
