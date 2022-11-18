@@ -17,6 +17,9 @@
 //Used in AdjustWindowRect(..) while resizing 
 extern DWORD g_WindowStyle;
 
+
+extern DX::StepTimer g_Timer;
+
 //These headers may not be present, so you may need to build the project once
 namespace
 {
@@ -33,6 +36,8 @@ DemoScene::DemoScene(const HWND& hwnd) :
 	m_DrawableGrid = std::make_unique<Drawable>();
 	m_DrawableSphere = std::make_unique<Drawable>();
 
+	m_Path = std::make_unique<Path>(g_Timer.GetTotalSeconds());
+	
 	//Setup DirectionalLight
 	m_DirLight.SetDirection(XMFLOAT3(0.0f, 0.0f, 1.0f));
 	//Setup Pointlight
@@ -53,8 +58,6 @@ DemoScene::DemoScene(const HWND& hwnd) :
 
 
 	m_Camera.SetPosition(-2.0f, 5.0f, -20.0f);
-
-	m_Path.Init();
 }
 
 bool DemoScene::CreateDeviceDependentResources()
@@ -179,8 +182,10 @@ void DemoScene::OnMouseMove(WPARAM btnState, int x, int y)
 	m_LastMousePos.y = y;
 }
 
-void DemoScene::UpdateScene(float dt)
+void DemoScene::UpdateScene(DX::StepTimer timer)
 {
+	float dt = timer.GetElapsedSeconds();
+
 	Super::ImGui_NewFrame();
 
 	m_Camera.SetLens(XMConvertToRadians(60.0f), static_cast<float>(m_ClientWidth) / m_ClientHeight, 1.0f, 1000.0f);
@@ -226,10 +231,10 @@ void DemoScene::UpdateScene(float dt)
 
 	m_SkinnedModelInstance.Update(dt);
 
-	static XMMATRIX modelScale = XMMatrixScaling(0.05f, 0.05f, 0.05f);
-	static XMMATRIX modelRot = XMMatrixIdentity();
-	static XMMATRIX modelOffset = XMMatrixTranslation(-2.0f, 0.0f, -7.0f);
-	XMStoreFloat4x4(&m_SkinnedModelInstance.World, modelScale * modelRot * modelOffset);
+	XMMATRIX modelScale = XMMatrixScaling(0.05f, 0.05f, 0.05f);
+	XMMATRIX modelOffset = m_Path->Update(timer);
+
+	XMStoreFloat4x4(&m_SkinnedModelInstance.World, modelScale * modelOffset);
 
 	for (int i = 0; i < m_SkinnedModelInstance.BonePositions.size(); ++i)
 	{
@@ -454,8 +459,10 @@ void DemoScene::DrawScene()
 	m_ImmediateContext->RSSetState(nullptr);
 
 	//control points
-	for (auto const& point : m_Path.m_StartingPoints)
+	for (int i = 1; i < m_Path->m_StartingPoints.size() - 1; ++i)
 	{
+		auto& const point = m_Path->m_StartingPoints[i];
+
 		XMMATRIX world = XMMatrixTranslation(point.x, point.y, point.z);
 
 		m_BasicEffect.SetWorld(world);
@@ -542,10 +549,10 @@ void DemoScene::DrawScene()
 
 	if (drawPathCurve)
 	{
-		for (int i = 0; i < m_Path.m_PlotPoints.size() - 1; ++i)
+		for (int i = 0; i < m_Path->m_PlotPoints.size() - 1; ++i)
 		{
-			auto origin = m_Path.m_PlotPoints[i];
-			auto direction = m_Path.m_PlotPoints[i + 1] - origin;
+			auto origin = m_Path->m_PlotPoints[i];
+			auto direction = m_Path->m_PlotPoints[i + 1] - origin;
 
 			DX::DrawRay(m_PrimitiveBatch.get(), origin, direction, false, Colors::Red);
 		}

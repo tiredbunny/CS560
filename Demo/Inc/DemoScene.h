@@ -51,7 +51,7 @@ public:
 	~DemoScene() = default;
 
 	bool Initialize() override;
-	void UpdateScene(float dt) override;
+	void UpdateScene(DX::StepTimer timer) override;
 	void DrawScene() override;
 
 	void OnMouseDown(WPARAM btnState, int x, int y);
@@ -66,5 +66,5 @@ private:
 	void ResetStates();
 	void FillBasicEffect(Drawable* drawable);
 	
-	Path m_Path;
+	std::unique_ptr<Path> m_Path;
 };

@@ -2,6 +2,7 @@
 
 #include <d3d11.h>
 #include <wrl/client.h>
+#include "StepTimer.h"
 
 constexpr auto MIN_WIDTH = 1280;
 constexpr auto MIN_HEIGHT = 720;
@@ -41,7 +42,7 @@ public:
 	virtual bool Initialize();
 	virtual void OnResize();
 
-	virtual void UpdateScene(float dt) = 0;
+	virtual void UpdateScene(DX::StepTimer timer) = 0;
 	virtual void DrawScene() = 0;
 
 protected:

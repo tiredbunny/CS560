@@ -2,6 +2,7 @@
 #include "Timer.h"
 #include "DemoScene.h"
 #include "imgui.h"
+#include "StepTimer.h"
 #include <windowsx.h>
 
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
@@ -12,7 +13,25 @@ constexpr auto g_ClientHeight = 720;
 
 DWORD g_WindowStyle = WS_OVERLAPPEDWINDOW ^ (WS_THICKFRAME | WS_MAXIMIZEBOX);
 
-std::unique_ptr<DemoScene> scene;
+std::unique_ptr<DemoScene> g_Scene;
+DX::StepTimer g_Timer;
+
+void Update(DX::StepTimer const& timer)
+{
+	float deltaTime = float(timer.GetElapsedSeconds());
+	float totalTime = float(timer.GetTotalSeconds());
+
+	g_Scene->UpdateScene(timer);
+}
+
+void Tick()
+{
+	g_Timer.Tick([&]()
+		{
+			Update(g_Timer);
+		});
+	g_Scene->DrawScene();
+}
 
 INT WINAPI wWinMain(_In_ HINSTANCE hInstance,
 	_In_opt_ HINSTANCE hPrevInstance,
@@ -20,6 +39,10 @@ INT WINAPI wWinMain(_In_ HINSTANCE hInstance,
 	_In_ int nShowCmd)
 {
 
+	AllocConsole();
+	freopen("conin$", "r", stdin);
+	freopen("conout$", "w", stdout);
+	freopen("conout$", "w", stderr);
 
 #if defined(DEBUG) || defined(_DEBUG)
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
@@ -45,10 +68,9 @@ INT WINAPI wWinMain(_In_ HINSTANCE hInstance,
 		return -1;
 	}
 
-	scene = std::make_unique<DemoScene>(windowHandle);
-	Timer sceneTimer;
+	g_Scene = std::make_unique<DemoScene>(windowHandle);
 
-	if (!scene->Initialize())
+	if (!g_Scene->Initialize())
 	{
 		MessageBox(NULL, L"Failed to initialize scene", 0, MB_OK | MB_ICONERROR);
 		return -1;
@@ -68,10 +90,8 @@ INT WINAPI wWinMain(_In_ HINSTANCE hInstance,
 		}
 		else
 		{
-			sceneTimer.Tick();
-
-			scene->UpdateScene(sceneTimer.GetDeltaTime());
-			scene->DrawScene();
+			Tick();
+			
 		}
 	}
 
@@ -129,15 +149,15 @@ LRESULT CALLBACK WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	case WM_LBUTTONDOWN:
 	case WM_MBUTTONDOWN:
 	case WM_RBUTTONDOWN:
-		scene->OnMouseDown(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+		g_Scene->OnMouseDown(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
 		return 0;
 	case WM_LBUTTONUP:
 	case WM_MBUTTONUP:
 	case WM_RBUTTONUP:
-		scene->OnMouseUp(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+		g_Scene->OnMouseUp(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
 		return 0;
 	case WM_MOUSEMOVE:
-		scene->OnMouseMove(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
+		g_Scene->OnMouseMove(wParam, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam));
 		return 0;
 	}
 

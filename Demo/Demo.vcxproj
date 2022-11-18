@@ -23,7 +23,7 @@
     <ProjectGuid>{0E232F5F-B885-453F-9C52-E561B70F6FA7}</ProjectGuid>
     <RootNamespace>Demo</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>CS 560 Project 1</ProjectName>
+    <ProjectName>CS 560 Project 2</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -118,6 +118,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>Inc\</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>NotSet</SubSystem>
@@ -158,6 +159,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <AdditionalIncludeDirectories>Inc\</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>NotSet</SubSystem>
@@ -198,6 +200,7 @@
     <ClInclude Include="Inc\Shaders.h" />
     <ClInclude Include="Inc\SkinnedData.h" />
     <ClInclude Include="Inc\SkinnedModel.h" />
+    <ClInclude Include="Inc\StepTimer.h" />
     <ClInclude Include="Inc\Timer.h" />
     <ClInclude Include="Inc\Vertex.h" />
   </ItemGroup>
