@@ -24,6 +24,7 @@ void Update(DX::StepTimer const& timer)
 	float totalTime = float(timer.GetTotalSeconds());
 
 	g_Scene->UpdateScene(timer);
+	g_Scene->DrawScene();
 }
 
 void Tick()
@@ -32,7 +33,6 @@ void Tick()
 		{
 			Update(g_Timer);
 		});
-	g_Scene->DrawScene();
 }
 
 INT WINAPI wWinMain(_In_ HINSTANCE hInstance,

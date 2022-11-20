@@ -391,9 +391,29 @@ void DemoScene::UpdateScene(DX::StepTimer timer)
 		ImGui::End();
 	}
 
-	ImGui::Text("deltaTime: %f", dt);
+	if (ImGui::Begin("Inverse Kinematics"))
+	{
+	
+		static auto oldIKSpherePos = Vector3();
+		ImGui::DragFloat3("Sphere Position", reinterpret_cast<float*>(&m_IKSpherePos), 0.1f, -50.0f, 50.0f);
+	
+		if (ImGui::Button("Apply"))
+		{
+			if (oldIKSpherePos != m_IKSpherePos)
+			{
+				XMVECTOR S, R, T;
+				XMMatrixDecompose(&S, &R, &T, modelOffset);
 
+				g_Path->m_Stop = false;
+				g_Path->ComputeTable(T, m_IKSpherePos);
 
+			}
+			
+			oldIKSpherePos = m_IKSpherePos;
+		}
+
+		ImGui::End();
+	}
 #pragma endregion
 }
 
@@ -495,6 +515,17 @@ void DemoScene::DrawScene()
 
 		m_ImmediateContext->DrawIndexed(m_DrawableSphere->IndexCount, 0, 0);
 	}
+
+	//IK Sphere
+
+	XMMATRIX world = XMMatrixScaling(3.0f, 3.0f, 3.0f) * XMMatrixTranslation(m_IKSpherePos.x, m_IKSpherePos.y, m_IKSpherePos.z);
+
+	m_BasicEffect.SetWorld(world);
+	m_BasicEffect.SetWorldViewProj(world * viewProj);
+
+	m_BasicEffect.Apply(m_ImmediateContext.Get());
+
+	m_ImmediateContext->DrawIndexed(m_DrawableSphere->IndexCount, 0, 0);
 	
 	//====================================== Skinned Model  ======================================//
 	

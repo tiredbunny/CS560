@@ -16,12 +16,13 @@ struct TableEntry
 class Path
 {
 public:
-	Path(float currentTime) : m_T1(0.2f), m_T2(0.8f), m_TravelDuration(10.0f),
+	Path(float currentTime) : m_T1(0.2f), m_T2(0.8f), m_TravelDuration(5.0f),
 		m_TravelBeginTime(currentTime)
 	{
 		m_V0 = 2.0f / (1.0f - m_T1 + m_T2);
 
-		ComputeTable();
+		ComputeTable(DirectX::SimpleMath::Vector3(0.0f, 0.0f ,0.0f),
+					 DirectX::SimpleMath::Vector3(0.0f, 0.0f, 10.0f));
 	}
 
 	DirectX::SimpleMath::Vector3 InterpolationFunc(float u, 
@@ -29,6 +30,9 @@ public:
 		DirectX::SimpleMath::Vector3 P2, DirectX::SimpleMath::Vector3 P3);
 
 	DirectX::XMMATRIX Update(DX::StepTimer& const timer);
+
+	void ComputeTable(DirectX::SimpleMath::Vector3 initialPos, DirectX::SimpleMath::Vector3 targetPos);
+
 private:
 	float GetDistanceFromTime(float time);
 	
@@ -37,7 +41,6 @@ private:
 	void GetUFromDistance(float s, float& outU, int& outIndex);
 	float GetVelocity(float time);
 
-	void ComputeTable();
 private:
 	std::vector<TableEntry> m_FinalTable;
 	TableEntry m_LastTableEntry;
@@ -56,6 +59,8 @@ public:
 	float m_NormalizedTime; // [0, 1]
 
 	float m_SpeedFactor; //[0, 1] & 1 = full velocity
+
+	bool m_Stop = false;
 };
 
 extern std::unique_ptr<Path> g_Path;

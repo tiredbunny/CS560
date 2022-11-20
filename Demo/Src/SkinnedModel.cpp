@@ -52,20 +52,26 @@ SkinnedModel::~SkinnedModel()
 
 void SkinnedModelInstance::Update(float dt)
 {
-	// ================ slidding / skidding =====================//
 
-	if (g_Path->m_NormalizedTime < 0.2f)
+	if (!g_Path->m_Stop)
 	{
-		TimePos = g_Path->m_SpeedFactor * 1.3f;
-	}
-	else if (g_Path->m_NormalizedTime > 0.8f)
-	{
-		TimePos += dt * 0.5f;
-	}
-	else
-		TimePos += dt * 1.3f;
+		// ================ slidding / skidding =====================//
 
-	//===========================================================//
+		if (g_Path->m_NormalizedTime < 0.2f)
+		{
+			TimePos = g_Path->m_SpeedFactor * 1.3f;
+		}
+		else if (g_Path->m_NormalizedTime > 0.8f)
+		{
+			TimePos += dt * 0.5f;
+		}
+		else
+			TimePos += dt * 1.3f;
+
+		//===========================================================//
+
+	}
+	
 
 	Model->SkinnedData.GetFinalTransforms(ClipName, TimePos, FinalTransforms, BonePositions);
 

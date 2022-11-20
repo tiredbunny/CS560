@@ -21,6 +21,8 @@ private:
 	std::unique_ptr<Drawable> m_DrawableGrid;
 	std::unique_ptr<Drawable> m_DrawableSphere;
 
+	//IK stuff
+	DirectX::SimpleMath::Vector3 m_IKSpherePos = {3.0f, 4.0f, -9.0f};
 
 	std::unique_ptr<SkinnedModel> m_SkinnedModel;
 	SkinnedModelInstance m_SkinnedModelInstance;

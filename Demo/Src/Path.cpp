@@ -7,20 +7,25 @@
 using namespace DirectX;
 using namespace SimpleMath;
 
+extern DX::StepTimer g_Timer;
 
-void Path::ComputeTable()
+void Path::ComputeTable(Vector3 initialPos, Vector3 targetPos)
 {
+	m_StartingPoints.clear();
+	m_ControlPoints.clear();
+	m_FinalTable.clear();
+	m_PlotPoints.clear();
 
-	m_StartingPoints.push_back(Vector3(-2.0f, 0.0f, -5.0f));
-	m_StartingPoints.push_back(Vector3(-3.0f, 0.0f, -7.0f));
-	m_StartingPoints.push_back(Vector3(-5.0f, 0.0f, -4.0f));
-	m_StartingPoints.push_back(Vector3(-10.0f, 0.0f, 2.0f));
-	m_StartingPoints.push_back(Vector3(-1.0f, 0.0f, -1.0f));
-	m_StartingPoints.push_back(Vector3(0.0f, 0.0f, 4.0f));
-	m_StartingPoints.push_back(Vector3(2.0f, 0.0f, 5.0f));
-	m_StartingPoints.push_back(Vector3(3.0f, 0.0f, 6.0f));
-	m_StartingPoints.push_back(Vector3(4.0f, 0.0f, 2.0f));
-	m_StartingPoints.push_back(Vector3(4.0f, 0.0f, 2.0f));
+	m_TravelBeginTime = g_Timer.GetTotalSeconds();
+
+	initialPos.y = 0.0f;
+	targetPos.y = 0.0f;
+
+
+	m_StartingPoints.push_back(initialPos);
+	m_StartingPoints.push_back(initialPos);
+	m_StartingPoints.push_back(targetPos);
+	m_StartingPoints.push_back(targetPos);
 
 
 	//Calculate control points using starting points
@@ -147,27 +152,27 @@ Vector3 Path::InterpolationFunc(float u,
 
 XMMATRIX Path::Update(DX::StepTimer& const timer)
 {
-
-	//================= used in animation interpolation in SkinnedModel.cpp ==============//
+	
+	//================= used in animation interpolation in SkinnedModel.cpp Update(..) func ==============//
 
 	//for slidding/skidding
 	float velocity = GetVelocity(m_NormalizedTime);
 
 	m_SpeedFactor = velocity / m_V0;
 
-	ImGui::Text("Velocity: %f", velocity);
-	ImGui::Text("Max Vel: %f", m_V0);
-	ImGui::Text("Speed Factor: %f", m_SpeedFactor);
-
 	//===================================================================================//
 	
 
 	//t in [0, 1]
-	m_NormalizedTime = (timer.GetTotalSeconds() - m_TravelBeginTime) / m_TravelDuration;
-	ImGui::Text("normalizedTime : %f", m_NormalizedTime);
+	if (m_Stop)
+		m_NormalizedTime = 1.0f;
+	else
+		m_NormalizedTime = (timer.GetTotalSeconds() - m_TravelBeginTime) / m_TravelDuration;
 
 	//get distance based on t
 	float dist = GetDistanceFromTime(m_NormalizedTime);
+
+
 
 	//get u based on distance
 	float u;
@@ -192,9 +197,6 @@ XMMATRIX Path::Update(DX::StepTimer& const timer)
 
 	auto position = InterpolationFunc(u, P0, P1, P2, P3);
 
-	ImGui::InputFloat3("Position", reinterpret_cast<float*>(&position), 2);
-
-
 	//Calculate orientation 
 	auto deltaU = m_FinalTable[1].u - m_FinalTable[0].u;
 	auto W = InterpolationFunc(u + deltaU, P0, P1, P2, P3) - InterpolationFunc(u, P0, P1, P2, P3);
@@ -214,6 +216,7 @@ XMMATRIX Path::Update(DX::StepTimer& const timer)
 	if (m_NormalizedTime > 1.0f)
 	{
 		m_TravelBeginTime = timer.GetTotalSeconds();
+		m_Stop = true;
 	}
 
 	return rotation * XMMatrixTranslation(position.x, position.y, position.z);
