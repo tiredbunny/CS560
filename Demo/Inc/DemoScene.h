@@ -66,5 +66,4 @@ private:
 	void ResetStates();
 	void FillBasicEffect(Drawable* drawable);
 	
-	std::unique_ptr<Path> m_Path;
 };

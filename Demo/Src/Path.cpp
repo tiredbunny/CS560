@@ -8,24 +8,19 @@ using namespace DirectX;
 using namespace SimpleMath;
 
 
-void Path::Init()
+void Path::ComputeTable()
 {
 
-	m_StartingPoints.push_back(Vector3(-5.0f, 0.0f, -5.0f));
-	m_StartingPoints.push_back(Vector3(-4.5f, 0.0f, -3.0f));
-	m_StartingPoints.push_back(Vector3(-3.0f, 0.0f, -2.0f));
-	m_StartingPoints.push_back(Vector3(-2.0f, 0.0f, 0.0f));
-	m_StartingPoints.push_back(Vector3(0.0f, 0.0f, 0.0f));
-	m_StartingPoints.push_back(Vector3(-1.0f, 0.0f, 2.0f));
-	m_StartingPoints.push_back(Vector3(1.0f, 0.0f, 3.0f));
-	m_StartingPoints.push_back(Vector3(2.4f, 0.0f, 2.3f));
-	m_StartingPoints.push_back(Vector3(2.0f, 0.0f, 4.0f));
-	m_StartingPoints.push_back(Vector3(0.0f, 0.0f, 5.0f));
-
-	for (auto& point : m_StartingPoints)
-	{
-		point *= XMFLOAT3(2.0f, 2.0f, 2.0f);
-	}
+	m_StartingPoints.push_back(Vector3(-2.0f, 0.0f, -5.0f));
+	m_StartingPoints.push_back(Vector3(-3.0f, 0.0f, -7.0f));
+	m_StartingPoints.push_back(Vector3(-5.0f, 0.0f, -4.0f));
+	m_StartingPoints.push_back(Vector3(-10.0f, 0.0f, 2.0f));
+	m_StartingPoints.push_back(Vector3(-1.0f, 0.0f, -1.0f));
+	m_StartingPoints.push_back(Vector3(0.0f, 0.0f, 4.0f));
+	m_StartingPoints.push_back(Vector3(2.0f, 0.0f, 5.0f));
+	m_StartingPoints.push_back(Vector3(3.0f, 0.0f, 6.0f));
+	m_StartingPoints.push_back(Vector3(4.0f, 0.0f, 2.0f));
+	m_StartingPoints.push_back(Vector3(4.0f, 0.0f, 2.0f));
 
 
 	//Calculate control points using starting points
@@ -62,7 +57,7 @@ void Path::Init()
 	//array of arc length tables 
 	std::vector<std::map<float, float>> tables;
 	
-	//build arc length table using adaptive approach
+	//build arc length tables using adaptive approach
 	for (int i = 1; i < m_ControlPoints.size() - 3; i += 3)
 	{
 		std::map<float, float>  currentTable;
@@ -147,17 +142,34 @@ Vector3 Path::InterpolationFunc(float u,
 		   (powf(u, 3))                                    * P3;
 }
 
+
 #include "imgui.h"
 
 XMMATRIX Path::Update(DX::StepTimer& const timer)
 {
+
+	//================= used in animation interpolation in SkinnedModel.cpp ==============//
+
+	//for slidding/skidding
+	float velocity = GetVelocity(m_NormalizedTime);
+
+	m_SpeedFactor = velocity / m_V0;
+
+	ImGui::Text("Velocity: %f", velocity);
+	ImGui::Text("Max Vel: %f", m_V0);
+	ImGui::Text("Speed Factor: %f", m_SpeedFactor);
+
+	//===================================================================================//
+	
+
 	//t in [0, 1]
-	float normalizedTime = (timer.GetTotalSeconds() - m_TravelBeginTime) / m_TravelDuration;
-	ImGui::Text("normalizedTime : %f", normalizedTime);
+	m_NormalizedTime = (timer.GetTotalSeconds() - m_TravelBeginTime) / m_TravelDuration;
+	ImGui::Text("normalizedTime : %f", m_NormalizedTime);
 
+	//get distance based on t
+	float dist = GetDistanceFromTime(m_NormalizedTime);
 
-	float dist = GetDistanceFromTime(normalizedTime);
-
+	//get u based on distance
 	float u;
 	int entryIndex;
 	GetUFromDistance(dist, u, entryIndex);
@@ -165,18 +177,13 @@ XMMATRIX Path::Update(DX::StepTimer& const timer)
 	// convert u from [0,1] to [0, n] where n = number of segments
 	u *= m_LastTableEntry.u;
 
-	
 	auto entriesPerSegment = m_FinalTable.size() / (m_StartingPoints.size() - 3);
 
-	// Mapping from [0:n] to the original mapping:
-	// [0:1] for first seg then [0:1] for second seg
+	// convert u to [0, 1] for this particular segment
 	u -= (entryIndex / entriesPerSegment);
 
-	// E.g. if i = 12 then 12 / 256 = 0. We are in the first segment.
-	// So index of p0 in the control pt. vector is 0 * 3 + 1 = 1
-
-	// Another example, if i = 280, 280 / 256 = 1. Second seg
-	// Index of p0 in the cp vector is  1 * 3 + 1 = 7
+	
+	// find the index for control points in this segment
 	int index = (entryIndex / entriesPerSegment) * 3 + 1;
 	auto P0 = m_ControlPoints[index];
 	auto P1 = m_ControlPoints[index + 1];
@@ -188,6 +195,7 @@ XMMATRIX Path::Update(DX::StepTimer& const timer)
 	ImGui::InputFloat3("Position", reinterpret_cast<float*>(&position), 2);
 
 
+	//Calculate orientation 
 	auto deltaU = m_FinalTable[1].u - m_FinalTable[0].u;
 	auto W = InterpolationFunc(u + deltaU, P0, P1, P2, P3) - InterpolationFunc(u, P0, P1, P2, P3);
 	W.Normalize();
@@ -195,7 +203,7 @@ XMMATRIX Path::Update(DX::StepTimer& const timer)
 	auto U = Vector3(XMVector3Cross(XMVectorSet(0, 1, 0, 0), W));
 	auto V = Vector3(XMVector3Cross(W, U));
 
-
+	
 	XMMATRIX rotation = XMMatrixSet(
 		U.x, U.y, U.z, 0,
 		V.x, V.y, V.z, 0,
@@ -203,7 +211,7 @@ XMMATRIX Path::Update(DX::StepTimer& const timer)
 		0, 0, 0, 1) * XMMatrixRotationY(XM_PI);
 
 	//loop
-	if (normalizedTime > 1.0f)
+	if (m_NormalizedTime > 1.0f)
 	{
 		m_TravelBeginTime = timer.GetTotalSeconds();
 	}
@@ -211,19 +219,33 @@ XMMATRIX Path::Update(DX::StepTimer& const timer)
 	return rotation * XMMatrixTranslation(position.x, position.y, position.z);
 }
 
-float Path::GetDistanceFromTime(float t)
+
+float Path::GetVelocity(float time)
 {
-	if (0.0f < t && t < m_T1)
+	if (0 < time && time < m_T1)
+		return m_V0 * time / m_T1;
+
+	else if (m_T1 < time && time < m_T2)
+		return m_V0;
+
+	else if (m_T2 < time && time < 1.0f)
+		return m_V0 * (1.0f - time) / (1.0f - m_T2);
+}
+
+
+float Path::GetDistanceFromTime(float time)
+{
+	if (0.0f < time && time < m_T1)
 	{
-		return (m_V0 / (2 * m_T1)) * powf(t, 2);
+		return (m_V0 / (2 * m_T1)) * powf(time, 2);
 	}
-	if (m_T1 < t && t < m_T2)
+	else if (m_T1 < time && time < m_T2)
 	{
-		return m_V0 * (t - (m_T1 / 2.0f));
+		return m_V0 * (time - (m_T1 / 2.0f));
 	}
-	if (m_T2 < t && t < 1.0f)
+	else if (m_T2 < time && time < 1.0f)
 	{
-		return ( ( (m_V0 * (t - m_T2)) / (2.0f * (1 - m_T2)) ) * (2 - t - m_T2) ) + (m_V0 * (m_T2 - (m_T1 / 2.0f)));
+		return ( ( (m_V0 * (time - m_T2)) / (2.0f * (1 - m_T2)) ) * (2 - time - m_T2) ) + (m_V0 * (m_T2 - (m_T1 / 2.0f)));
 	}
 }
 
@@ -249,11 +271,11 @@ void Path::GetUFromDistance(float s, float& outU, int& outIndex)
 
 	float length;
 	float u;
-	int segmentIndex;
+	int entryIndex;
 	do
 	{
 		u = (uMin + uMax) / 2.0f;
-		GetDistanceFromU(u, length, segmentIndex);
+		GetDistanceFromU(u, length, entryIndex);
 
 		if (s > length) 
 			uMin = u;
@@ -263,5 +285,5 @@ void Path::GetUFromDistance(float s, float& outU, int& outIndex)
 	} while (fabsf(s - length) > 0.0001f);
 
 	outU = u;
-	outIndex = segmentIndex;
+	outIndex = entryIndex;
 }

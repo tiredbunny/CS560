@@ -31,6 +31,7 @@ float BoneAnimation::GetEndTime()const
 
 void BoneAnimation::Interpolate(float t, XMFLOAT4X4& M)const
 {
+
 	if (t <= Keyframes.front().TimePos)
 	{
 		XMVECTOR S = XMLoadFloat3(&Keyframes.front().vqs.Scale);
@@ -57,6 +58,7 @@ void BoneAnimation::Interpolate(float t, XMFLOAT4X4& M)const
 			{
 				float lerpPercent = (t - Keyframes[i].TimePos) / (Keyframes[i + 1].TimePos - Keyframes[i].TimePos);
 
+		
 				XMVECTOR s0 = XMLoadFloat3(&Keyframes[i].vqs.Scale);
 				XMVECTOR s1 = XMLoadFloat3(&Keyframes[i + 1].vqs.Scale);
 

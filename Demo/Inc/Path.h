@@ -21,7 +21,7 @@ public:
 	{
 		m_V0 = 2.0f / (1.0f - m_T1 + m_T2);
 
-		Init();
+		ComputeTable();
 	}
 
 	DirectX::SimpleMath::Vector3 InterpolationFunc(float u, 
@@ -30,14 +30,14 @@ public:
 
 	DirectX::XMMATRIX Update(DX::StepTimer& const timer);
 private:
-	float GetDistanceFromTime(float t);
+	float GetDistanceFromTime(float time);
 	
 	//outIndex is the index in the final table
 	void GetDistanceFromU(float u, float& outDistance, int& outIndex);
 	void GetUFromDistance(float s, float& outU, int& outIndex);
+	float GetVelocity(float time);
 
-
-	void Init();
+	void ComputeTable();
 private:
 	std::vector<TableEntry> m_FinalTable;
 	TableEntry m_LastTableEntry;
@@ -46,8 +46,16 @@ private:
 	float m_T1, m_T2;
 	float m_TravelDuration; //total time it takes to travel on the path
 	float m_TravelBeginTime;
+
 public:
 	std::vector<DirectX::SimpleMath::Vector3> m_PlotPoints;
 	std::vector<DirectX::SimpleMath::Vector3> m_StartingPoints;
 	std::vector<DirectX::SimpleMath::Vector3> m_ControlPoints;
+
+	//can also be used to indicate how much path is covered
+	float m_NormalizedTime; // [0, 1]
+
+	float m_SpeedFactor; //[0, 1] & 1 = full velocity
 };
+
+extern std::unique_ptr<Path> g_Path;

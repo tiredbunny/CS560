@@ -14,6 +14,8 @@ constexpr auto g_ClientHeight = 720;
 DWORD g_WindowStyle = WS_OVERLAPPEDWINDOW ^ (WS_THICKFRAME | WS_MAXIMIZEBOX);
 
 std::unique_ptr<DemoScene> g_Scene;
+std::unique_ptr<Path> g_Path;
+
 DX::StepTimer g_Timer;
 
 void Update(DX::StepTimer const& timer)
@@ -39,11 +41,6 @@ INT WINAPI wWinMain(_In_ HINSTANCE hInstance,
 	_In_ int nShowCmd)
 {
 
-	AllocConsole();
-	freopen("conin$", "r", stdin);
-	freopen("conout$", "w", stdout);
-	freopen("conout$", "w", stderr);
-
 #if defined(DEBUG) || defined(_DEBUG)
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 #endif
@@ -68,7 +65,10 @@ INT WINAPI wWinMain(_In_ HINSTANCE hInstance,
 		return -1;
 	}
 
+	
+
 	g_Scene = std::make_unique<DemoScene>(windowHandle);
+	g_Path = std::make_unique<Path>(g_Timer.GetTotalSeconds());
 
 	if (!g_Scene->Initialize())
 	{
