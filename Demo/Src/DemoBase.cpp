@@ -181,6 +181,8 @@ void DemoBase::OnResize()
 	m_ScreenViewport.Width = static_cast<float>(m_ClientWidth);
 	m_ScreenViewport.Height = static_cast<float>(m_ClientHeight);
 
+	m_Viewport = DirectX::SimpleMath::Viewport(m_ScreenViewport);
+
 	m_ImmediateContext->RSSetViewports(1, &m_ScreenViewport);
 
 }

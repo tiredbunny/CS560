@@ -10,6 +10,8 @@
 #include <VertexTypes.h>
 #include "Camera.h"
 #include "Path.h"
+#include <SpriteFont.h>
+
 
 struct Drawable;
 
@@ -36,6 +38,9 @@ private:
 	DirectionalLight m_DirLight;
 	PointLight m_PointLight;
 	SpotLight m_SpotLight;
+
+	std::unique_ptr<DirectX::SpriteBatch> m_SpriteBatch;
+	std::unique_ptr<DirectX::SpriteFont> m_SpriteFont;
 
 
 	//Basic effect stuff for debug drawing

@@ -22,7 +22,7 @@ public:
 		m_V0 = 2.0f / (1.0f - m_T1 + m_T2);
 
 		ComputeTable(DirectX::SimpleMath::Vector3(0.0f, 0.0f ,0.0f),
-					 DirectX::SimpleMath::Vector3(0.0f, 0.0f, 10.0f));
+					 DirectX::SimpleMath::Vector3(3.0f, 4.0f, -9.0f));
 	}
 
 	DirectX::SimpleMath::Vector3 InterpolationFunc(float u, 
@@ -47,7 +47,6 @@ private:
 
 	float m_V0;
 	float m_T1, m_T2;
-	float m_TravelDuration; //total time it takes to travel on the path
 	float m_TravelBeginTime;
 
 public:
@@ -61,6 +60,9 @@ public:
 	float m_SpeedFactor; //[0, 1] & 1 = full velocity
 
 	bool m_Stop = false;
+
+	float m_TravelDuration; //total time it takes to travel on the path
+
 };
 
 extern std::unique_ptr<Path> g_Path;

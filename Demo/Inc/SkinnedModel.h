@@ -35,5 +35,5 @@ struct SkinnedModelInstance
 	
 	std::vector<DirectX::XMFLOAT4> BonePositions;
 
-	void Update(float dt);
+	void Update(float dt, bool CCD, DirectX::XMFLOAT3 target);
 };

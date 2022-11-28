@@ -3,6 +3,7 @@
 #include <d3d11.h>
 #include <wrl/client.h>
 #include "StepTimer.h"
+#include "SimpleMath.h"
 
 constexpr auto MIN_WIDTH = 1280;
 constexpr auto MIN_HEIGHT = 720;
@@ -26,7 +27,8 @@ protected:
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilView> m_DepthStencilView;
 
 	D3D11_VIEWPORT m_ScreenViewport;
-	
+	DirectX::SimpleMath::Viewport m_Viewport;
+
 	HWND m_MainWindow;
 
 	UINT m_ClientWidth;

@@ -50,7 +50,7 @@ SkinnedModel::~SkinnedModel()
 #include "imgui.h"
 #include "Path.h"
 
-void SkinnedModelInstance::Update(float dt)
+void SkinnedModelInstance::Update(float dt, bool CCD, DirectX::XMFLOAT3 target)
 {
 
 	if (!g_Path->m_Stop)
@@ -70,10 +70,15 @@ void SkinnedModelInstance::Update(float dt)
 
 		//===========================================================//
 
+		
 	}
+
+
+	Model->SkinnedData.GetFinalTransforms(ClipName, TimePos, FinalTransforms, BonePositions,
+		CCD, target);
 	
 
-	Model->SkinnedData.GetFinalTransforms(ClipName, TimePos, FinalTransforms, BonePositions);
+
 
 	// Loop animation
 	if (TimePos > Model->SkinnedData.GetClipEndTime(ClipName))

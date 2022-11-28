@@ -36,8 +36,6 @@ DemoScene::DemoScene(const HWND& hwnd) :
 	m_DrawableGrid = std::make_unique<Drawable>();
 	m_DrawableSphere = std::make_unique<Drawable>();
 
-	
-	
 	//Setup DirectionalLight
 	m_DirLight.SetDirection(XMFLOAT3(0.0f, 0.0f, 1.0f));
 	//Setup Pointlight
@@ -51,7 +49,6 @@ DemoScene::DemoScene(const HWND& hwnd) :
 
 	m_DrawableGrid->Material.Diffuse = XMFLOAT4(0.4f, 0.4f, 0.4f, 1.0f);
 	m_DrawableGrid->Material.Ambient = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-
 
 	m_DrawableSphere->Material.Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	m_DrawableSphere->Material.Ambient = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
@@ -73,6 +70,8 @@ bool DemoScene::CreateDeviceDependentResources()
 
 	m_BasicEffect.Create(m_Device.Get(), layoutPosNormalTex);
 
+	m_SpriteBatch = std::make_unique<SpriteBatch>(m_ImmediateContext.Get());
+	m_SpriteFont = std::make_unique<SpriteFont>(m_Device.Get(), L"font.spritefont");
 
 	Microsoft::WRL::ComPtr<ID3D11InputLayout> layoutPosNormalTexSkinned;
 	DX::ThrowIfFailed
@@ -188,7 +187,7 @@ void DemoScene::UpdateScene(DX::StepTimer timer)
 
 	Super::ImGui_NewFrame();
 
-	m_Camera.SetLens(XMConvertToRadians(60.0f), static_cast<float>(m_ClientWidth) / m_ClientHeight, 1.0f, 1000.0f);
+	m_Camera.SetLens(XMConvertToRadians(60.0f), static_cast<float>(m_ClientWidth) / m_ClientHeight, 0.1f, 1000.0f);
 	
 
 	if (GetAsyncKeyState('W') & 0x8000)
@@ -225,12 +224,17 @@ void DemoScene::UpdateScene(DX::StepTimer timer)
 	m_SkinnedEffect.ApplyPerFrameConstants(m_ImmediateContext.Get());
 
 
-	m_SkinnedModelInstance.Update(dt);
 
 	XMMATRIX modelScale = XMMatrixScaling(0.05f, 0.05f, 0.05f);
 	XMMATRIX modelOffset = g_Path->Update(timer);
+	XMMATRIX modelWorld = modelScale * modelOffset;
 
-	XMStoreFloat4x4(&m_SkinnedModelInstance.World, modelScale * modelOffset);
+	XMStoreFloat4x4(&m_SkinnedModelInstance.World, modelWorld);
+
+	Vector3 spherePosLocal = XMVector3Transform(m_IKSpherePos, XMMatrixInverse(nullptr, modelWorld));
+
+	m_SkinnedModelInstance.Update(dt, g_Path->m_Stop, spherePosLocal);
+
 
 	for (int i = 0; i < m_SkinnedModelInstance.BonePositions.size(); ++i)
 	{
@@ -397,20 +401,26 @@ void DemoScene::UpdateScene(DX::StepTimer timer)
 		static auto oldIKSpherePos = Vector3();
 		ImGui::DragFloat3("Sphere Position", reinterpret_cast<float*>(&m_IKSpherePos), 0.1f, -50.0f, 50.0f);
 	
-		if (ImGui::Button("Apply"))
+		ImGui::DragFloat("Time to walk", &g_Path->m_TravelDuration, 0.1f, 1.0f, 15.0f);
+
+		if (ImGui::Button("Walk to Sphere"))
 		{
 			if (oldIKSpherePos != m_IKSpherePos)
 			{
 				XMVECTOR S, R, T;
 				XMMatrixDecompose(&S, &R, &T, modelOffset);
 
+				Vector3 forwardVec = m_IKSpherePos - Vector3(T);
+				forwardVec.Normalize();
+
 				g_Path->m_Stop = false;
-				g_Path->ComputeTable(T, m_IKSpherePos);
+				g_Path->ComputeTable(T, m_IKSpherePos - forwardVec);
 
 			}
 			
 			oldIKSpherePos = m_IKSpherePos;
 		}
+
 
 		ImGui::End();
 	}
@@ -452,9 +462,10 @@ void DemoScene::DrawScene()
 	Clear();
 	PrepareForRendering();
 
-	static bool drawSkinnedModel = true;
+	static bool drawSkinnedModel = false;
 	static bool drawSkeleton = true;
 	static bool drawPathCurve = true;
+	static bool drawBoneIndices = false;
 	
 	XMMATRIX viewProj = m_Camera.GetView() * m_Camera.GetProj();
 	UINT stride = sizeof(GeometricPrimitive::VertexType);
@@ -566,6 +577,7 @@ void DemoScene::DrawScene()
 	{
 		ImGui::Checkbox("Draw Skeleton", &drawSkeleton);
 		ImGui::Checkbox("Draw Path", &drawPathCurve);
+		ImGui::Checkbox("Draw Bone Indices", &drawBoneIndices);
 
 		ImGui::End();
 	}
@@ -607,9 +619,30 @@ void DemoScene::DrawScene()
 
 	m_PrimitiveBatch->End();
 
+	//==================================  text rendering =================================//
+
+	if (drawBoneIndices)
+	{
+		m_SpriteBatch->Begin();
+
+		for (int i = 0; i < m_SkinnedModelInstance.BonePositions.size(); ++i)
+		{
+	
+			Vector3 BonePos = XMLoadFloat4(&m_SkinnedModelInstance.BonePositions[i]);
+			auto screenSpace = m_Viewport.Project(BonePos, m_Camera.GetProj(), m_Camera.GetView(), XMMatrixIdentity());
+
+			m_SpriteFont->DrawString(m_SpriteBatch.get(), std::to_wstring(i).c_str(), XMFLOAT2(screenSpace.x, screenSpace.y));
+
+		}
+
+		m_SpriteBatch->End();
+	}
+
 	m_ImmediateContext->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
 	m_ImmediateContext->OMSetDepthStencilState(nullptr, 0);
 	m_ImmediateContext->RSSetState(nullptr);
+
+	
 
 	ResetStates();
 	Present();

@@ -137,18 +137,123 @@ void SkinnedData::Set(std::vector<int>& boneHierarchy,
 	mBoneHierarchy = boneHierarchy;
 	mBoneOffsets = boneOffsets;
 	mAnimations = animations;
+
+	GenerateIKData();
 }
 
+void SkinnedData::GenerateIKData()
+{
+	int i = m_EndEffectorIndex;
+
+	while (i != 0) //0 is the root bone
+	{
+		m_IKBoneList.push_back(i);
+
+		i = mBoneHierarchy[i];
+	}
+}
+
+#include "imgui.h"
+#include <algorithm>
+#include "StepTimer.h"
+
+extern DX::StepTimer g_Timer;
+using namespace SimpleMath;
+
 void SkinnedData::GetFinalTransforms(const std::string& clipName, float timePos, std::vector<XMFLOAT4X4>& finalTransforms,
-	std::vector<DirectX::XMFLOAT4>& bonePositions)const
+	std::vector<DirectX::XMFLOAT4>& bonePositions, bool doCCD,
+	DirectX::XMFLOAT3 target) const
 {
 	UINT numBones = mBoneOffsets.size();
 
-	std::vector<XMFLOAT4X4> toParentTransforms(numBones);
+	static std::vector<XMFLOAT4X4> toParentTransforms(numBones);
 
-	// Interpolate all the bones of this clip at the given time instance.
-	auto clip = mAnimations.find(clipName);
-	clip->second.Interpolate(timePos, toParentTransforms);
+	//stop playing animation if doCCD
+	if (!doCCD)
+	{
+		// Interpolate all the bones of this clip at the given time instance.
+		auto clip = mAnimations.find(clipName);
+		clip->second.Interpolate(timePos, toParentTransforms);
+	}
+	
+	std::vector<XMFLOAT4X4> toRootTransformsTemp(numBones);
+
+	// The root bone has index 0.  The root bone has no parent, so its toRootTransform
+	// is just its local bone transform.
+	toRootTransformsTemp[0] = toParentTransforms[0];
+
+	// Now find the toRootTransform of the children.
+	for (UINT i = 1; i < numBones; ++i)
+	{
+		XMMATRIX toParent = XMLoadFloat4x4(&toParentTransforms[i]);
+
+		int parentIndex = mBoneHierarchy[i];
+		XMMATRIX parentToRoot = XMLoadFloat4x4(&toRootTransformsTemp[parentIndex]);
+
+		XMMATRIX toRoot = XMMatrixMultiply(toParent, parentToRoot);
+
+		XMStoreFloat4x4(&toRootTransformsTemp[i], toRoot);
+	}
+
+	if (doCCD)
+	{
+		XMMATRIX toRoot = XMLoadFloat4x4(&toRootTransformsTemp[m_EndEffectorIndex]);
+		XMVECTOR endEffectorPos = XMVectorSet(0, 0, 0, 1);
+		endEffectorPos = XMVector3TransformCoord(endEffectorPos, toRoot);
+
+		float dist = XMVectorGetX(XMVector3Length(endEffectorPos - target));
+
+		if (dist > 1.0f)
+		{
+
+			for (int i = 0; i < m_IKBoneList.size(); ++i)
+			{
+
+				//to end effector's local space
+				Matrix toEndEffector = XMMatrixIdentity();
+				for (int j = i; j >= 0; --j)
+				{
+					Matrix bone = toParentTransforms[m_IKBoneList[j]];
+					toEndEffector = bone * toEndEffector;
+				}
+
+				Vector3 vck;
+				XMVECTOR scale, rotate, translate;
+				XMMatrixDecompose(&scale, &rotate, &translate, toEndEffector);
+				vck = translate;
+
+
+				int parentIndex = mBoneHierarchy[m_IKBoneList[i]];
+				XMMATRIX parentToRoot = XMLoadFloat4x4(&toRootTransformsTemp[parentIndex]);
+				XMMATRIX rootToCurrent = XMMatrixInverse(nullptr, parentToRoot);
+
+				Vector3 vdk = XMVector3TransformCoord(XMLoadFloat3(&target), rootToCurrent);
+
+				vck.Normalize();
+				vdk.Normalize();
+
+				float cos = vck.Dot(vdk);
+				float angle = acosf(std::clamp(cos, -1.0f, 1.0f));
+
+				Vector3 axis = vck.Cross(vdk);
+				axis.Normalize();
+
+				XMMATRIX rotation = toEndEffector * XMMatrixRotationAxis(axis, angle * g_Timer.GetElapsedSeconds() * 0.5f);
+
+				//Transform back to local space of current bone
+				for (int j = 0; j < i; ++j)
+				{
+					Matrix bone = toParentTransforms[m_IKBoneList[j]];
+					rotation = XMMatrixInverse(nullptr, bone) * rotation;
+				}
+
+
+				XMStoreFloat4x4(&toParentTransforms[m_IKBoneList[i]], rotation);
+			}
+
+		}
+
+	}
 
 	//
 	// Traverse the hierarchy and transform all the bones to the root space.
@@ -187,4 +292,6 @@ void SkinnedData::GetFinalTransforms(const std::string& clipName, float timePos,
 
 		XMStoreFloat4(&bonePositions[i], BonePos);
 	}
+
+
 }
