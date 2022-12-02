@@ -25,6 +25,9 @@
     <Filter Include="Source Files\imgui">
       <UniqueIdentifier>{35a9d8fc-0008-4f2f-8aa8-0bbaaf2ac299}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\Sky">
+      <UniqueIdentifier>{c4f40b53-9885-4ca6-ad96-5f0e46152888}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
@@ -121,6 +124,9 @@
     <ClInclude Include="Inc\StepTimer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Inc\Sky.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Src\DemoBase.cpp">
@@ -192,6 +198,12 @@
     <ClCompile Include="Src\Path.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Src\SkyEffect.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Sky.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Src\Shaders\Basic\PixelShader.hlsl">
@@ -202,6 +214,12 @@
     </FxCompile>
     <FxCompile Include="Src\Shaders\Basic\SkinnedVertexShader.hlsl">
       <Filter>Shaders\Basic</Filter>
+    </FxCompile>
+    <FxCompile Include="Src\Shaders\SkyPS.hlsl">
+      <Filter>Shaders\Sky</Filter>
+    </FxCompile>
+    <FxCompile Include="Src\Shaders\SkyVS.hlsl">
+      <Filter>Shaders\Sky</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>

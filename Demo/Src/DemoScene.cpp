@@ -62,6 +62,9 @@ DemoScene::DemoScene(const HWND& hwnd) :
 
 bool DemoScene::CreateDeviceDependentResources()
 {
+
+	m_Sky.Create(m_Device.Get(), L"Textures\\desertcube1024.dds", 3000.0f);
+
 	Microsoft::WRL::ComPtr<ID3D11InputLayout> layoutPosNormalTex;
 	DX::ThrowIfFailed
 	(
@@ -440,15 +443,13 @@ void DemoScene::DrawScene()
 	UINT stride = sizeof(GeometricPrimitive::VertexType);
 	UINT offset = 0;
 
+
 	//====================================== static objects ======================================//
 
 	static Drawable* drawables[] = { m_DrawableGrid.get() };
 	for (auto const& it : drawables)
 	{
 		FillBasicEffect(it);
-
-		if (it == m_DrawableGrid.get())
-			m_ImmediateContext->RSSetState(m_CommonStates->Wireframe());
 
 		m_ImmediateContext->IASetVertexBuffers(0, 1, it->VertexBuffer.GetAddressOf(), &stride, &offset);
 		m_ImmediateContext->IASetIndexBuffer(it->IndexBuffer.Get(), it->IndexBufferFormat, 0);
@@ -528,6 +529,13 @@ void DemoScene::DrawScene()
 	}
 	
 
+
+	//====================================== Sky/background ======================================================//
+
+	m_Sky.Draw(m_ImmediateContext.Get(), m_CommonStates->LinearWrap(), m_CommonStates->CullNone(),
+		m_Camera.GetPosition3f(), viewProj, m_ClientWidth, m_ClientHeight,
+		true, XMFLOAT4(0, 0, 0, 0), XMFLOAT4(1, 1, 1, 1));
+
 	//====================================== Skeleton line & Path curve drawing ======================================//
 
 
@@ -575,6 +583,9 @@ void DemoScene::DrawScene()
 	}
 
 	m_PrimitiveBatch->End();
+
+
+	//============================================================================================================//
 
 	m_ImmediateContext->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
 	m_ImmediateContext->OMSetDepthStencilState(nullptr, 0);

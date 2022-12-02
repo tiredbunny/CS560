@@ -36,3 +36,11 @@ const D3D11_INPUT_ELEMENT_DESC SkinnedVertex::InputElements[SkinnedVertex::Eleme
 };
 
 static_assert(sizeof(SkinnedVertex) == 48, "mismatch");
+
+
+
+const D3D11_INPUT_ELEMENT_DESC SkyVertex::InputElements[SkyVertex::ElementCount] =
+{
+	{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+};
+static_assert(sizeof(SkyVertex) == 12, "mismatch");

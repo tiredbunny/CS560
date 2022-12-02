@@ -189,3 +189,59 @@ public:
 	void Bind(ID3D11DeviceContext* context) const;
 };
 
+
+class SkyEffect : PipelineShaderObjects
+{
+	struct VS_CbPerObject
+	{
+		DirectX::XMFLOAT4X4 WorldViewProj;
+	} m_CbConstantsData;
+
+	struct PS_CbPerFrame
+	{
+		DirectX::XMFLOAT2 ScreenResolution;
+		DirectX::XMFLOAT2 padding;
+
+		DirectX::XMFLOAT4 ColorA;
+		DirectX::XMFLOAT4 ColorB;
+
+	} m_CbPerFrameData;
+
+	static_assert(sizeof(VS_CbPerObject) % 16 == 0, "struct not 16-byte aligned");
+	static_assert(sizeof(PS_CbPerFrame) % 16 == 0, "struct not 16-byte aligned");
+
+	ConstantBuffer<VS_CbPerObject> m_CbPerObject;
+	ConstantBuffer<PS_CbPerFrame> m_CbPerFrame;
+public:
+	SkyEffect() = default;
+	SkyEffect(const SkyEffect&) = delete;
+	SkyEffect& operator=(const SkyEffect&) = delete;
+
+	SkyEffect(ID3D11Device* device, const Microsoft::WRL::ComPtr<ID3D11InputLayout>& inputLayout)
+	{
+		Create(device, inputLayout);
+	}
+
+	/// @brief Create
+	/// @param device 
+	/// @param inputLayout 
+	void Create(ID3D11Device* device, const	Microsoft::WRL::ComPtr<ID3D11InputLayout>& inputLayout);
+
+
+	void SetWorldViewProj(DirectX::FXMMATRIX worldViewProj);
+	void SetTextureCube(ID3D11DeviceContext* context, ID3D11ShaderResourceView* srv);
+	void SetSamplerState(ID3D11DeviceContext* context, ID3D11SamplerState* state);
+
+	void SetSkyBoxEnabled(bool enabled);
+	void SetScreenResolution(DirectX::XMFLOAT2 screenRes);
+	void SetGradientColors(DirectX::XMFLOAT4 ColorA, DirectX::XMFLOAT4 ColorB);
+
+	/// @brief Apply
+	/// @param context 
+	void Apply(ID3D11DeviceContext* context);
+
+
+	/// @brief Bind
+	/// @param context 
+	void Bind(ID3D11DeviceContext* context) const;
+};

@@ -10,6 +10,7 @@
 #include <VertexTypes.h>
 #include "Camera.h"
 #include "Path.h"
+#include "Sky.h"
 
 struct Drawable;
 
@@ -35,6 +36,8 @@ private:
 	PointLight m_PointLight;
 	SpotLight m_SpotLight;
 
+	//Skybox
+	Sky m_Sky;
 
 	//Basic effect stuff for debug drawing
 	std::unique_ptr<DirectX::PrimitiveBatch<DirectX::VertexPositionColor>> m_PrimitiveBatch;

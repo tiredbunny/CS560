@@ -200,6 +200,7 @@
     <ClInclude Include="Inc\Shaders.h" />
     <ClInclude Include="Inc\SkinnedData.h" />
     <ClInclude Include="Inc\SkinnedModel.h" />
+    <ClInclude Include="Inc\Sky.h" />
     <ClInclude Include="Inc\StepTimer.h" />
     <ClInclude Include="Inc\Timer.h" />
     <ClInclude Include="Inc\Vertex.h" />
@@ -261,6 +262,8 @@
     <ClCompile Include="Src\BasicEffect.cpp" />
     <ClCompile Include="Src\SkinnedData.cpp" />
     <ClCompile Include="Src\SkinnedModel.cpp" />
+    <ClCompile Include="Src\Sky.cpp" />
+    <ClCompile Include="Src\SkyEffect.cpp" />
     <ClCompile Include="Src\Timer.cpp" />
     <ClCompile Include="Src\Vertex.cpp" />
   </ItemGroup>
@@ -325,6 +328,30 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Src\Shaders\SkyPS.hlsl">
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_SkyPS</VariableName>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Src\Shaders\Compiled\CompiledSkyPS.h</HeaderFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </ObjectFileOutput>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_SkyPS</VariableName>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Src\Shaders\Compiled\CompiledSkyPS.h</HeaderFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </ObjectFileOutput>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Src\Shaders\SkyVS.hlsl">
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_SkyVS</VariableName>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Src\Shaders\Compiled\CompiledSkyVS.h</HeaderFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </ObjectFileOutput>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_SkyVS</VariableName>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Src\Shaders\Compiled\CompiledSkyVS.h</HeaderFileOutput>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </ObjectFileOutput>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
     </FxCompile>
   </ItemGroup>
