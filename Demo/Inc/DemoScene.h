@@ -11,7 +11,7 @@
 #include "Camera.h"
 #include "Path.h"
 #include "Sky.h"
-#include "Cloth.h"
+#include "SoftBody.h"
 #include <SpriteFont.h>
 #include <VertexTypes.h>
 
@@ -25,7 +25,8 @@ private:
 	std::unique_ptr<Drawable> m_DrawableGrid;
 	std::unique_ptr<Drawable> m_DrawableSphere;
 
-	std::unique_ptr<Cloth> m_Cloth;
+	//cloth
+	std::unique_ptr<SoftBody> m_Softbody;
 
 	BasicLightsEffect m_BasicEffect;
 

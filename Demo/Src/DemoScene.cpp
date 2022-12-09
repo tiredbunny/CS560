@@ -36,7 +36,7 @@ DemoScene::DemoScene(const HWND& hwnd) :
 	m_DrawableGrid = std::make_unique<Drawable>();
 	m_DrawableSphere = std::make_unique<Drawable>();
 
-	m_Cloth = std::make_unique<Cloth>(10, 10, 10);
+	m_Softbody = std::make_unique<SoftBody>(30, 30, 30);
 	
 	//Setup DirectionalLight
 	m_DirLight.SetDirection(XMFLOAT3(0.0f, 0.0f, 1.0f));
@@ -133,7 +133,7 @@ void DemoScene::CreateBuffers()
 	Helpers::CreateGridXZ(vertices, indices, 100, 100);
 	m_DrawableGrid->Create(m_Device.Get(), vertices, indices);
 
-	GeometricPrimitive::CreateSphere(vertices, indices, 0.25f, 16, false);
+	GeometricPrimitive::CreateSphere(vertices, indices, 1.0f, 16, false);
 	m_DrawableSphere->Create(m_Device.Get(), vertices, indices);
 
 }
@@ -186,7 +186,7 @@ void DemoScene::UpdateScene(DX::StepTimer timer)
 
 	Super::ImGui_NewFrame();
 
-	m_Camera.SetLens(XMConvertToRadians(60.0f), static_cast<float>(m_ClientWidth) / m_ClientHeight, 1.0f, 1000.0f);
+	m_Camera.SetLens(XMConvertToRadians(80.0f), static_cast<float>(m_ClientWidth) / m_ClientHeight, 0.1f, 1000.0f);
 	
 
 	if (GetAsyncKeyState('W') & 0x8000)
@@ -203,15 +203,14 @@ void DemoScene::UpdateScene(DX::StepTimer timer)
 
 	m_Camera.UpdateViewMatrix();
 
-	m_Cloth->Update(dt);
+	//static bool applyGravity = true;
+	//ImGui::Checkbox("Apply Gravity to cloth", &applyGravity);
+	//
+	//if (applyGravity)
+	//	m_Cloth->AddForce(Vector3(0.0f, -9.8f, 0.0f) * dt);
 
-	if (ImGui::Button("Apply Cloth Force"))
-	{
-		m_Cloth->AddForce(Vector3(0, 0, 10.0f));
+	
 
-	}
-
-	m_Cloth->AddForce(Vector3(0.0f, -9.8f, 0.0f));
 
 	XMStoreFloat4x4(&m_DrawableGrid->TextureTransform, XMMatrixScaling(20.0f, 20.0f, 0.0f));
 
@@ -412,23 +411,22 @@ void DemoScene::DrawScene()
 	Clear();
 	PrepareForRendering();
 
-	static bool wireFrame = false;
 	static bool drawIndices = false;
 	static bool drawLines = true;
+	static Vector3 SpherePos = Vector3(0, 8, -10);
 
 	XMMATRIX viewProj = m_Camera.GetView() * m_Camera.GetProj();
 	UINT stride = sizeof(GeometricPrimitive::VertexType);
 	UINT offset = 0;
 
-	ImGui::Checkbox("Wireframe", &wireFrame);
 	ImGui::Checkbox("Indices", &drawIndices);
-	ImGui::Checkbox("Lines", &drawLines);
+	ImGui::Checkbox("Draw Constraint Lines", &drawLines);
+	ImGui::DragFloat3("Sphere Position", reinterpret_cast<float*>(&SpherePos), 0.05f, -50.0f, 50.0f);
+
 	//====================================== static objects ======================================//
 
-	if (wireFrame)
-		m_ImmediateContext->RSSetState(m_CommonStates->Wireframe());
-	else
-		m_ImmediateContext->RSSetState(nullptr);
+
+	//m_ImmediateContext->RSSetState(nullptr);
 
 	static Drawable* drawables[] = { m_DrawableGrid.get() };
 	for (auto const& it : drawables)
@@ -441,7 +439,7 @@ void DemoScene::DrawScene()
 	}
 	
 
-	//===================================  cloth points ==============================================//
+	//===================================  cloth ==============================================//
 
 	m_ImmediateContext->IASetVertexBuffers(0, 1, m_DrawableSphere->VertexBuffer.GetAddressOf(), &stride, &offset);
 	m_ImmediateContext->IASetIndexBuffer(m_DrawableSphere->IndexBuffer.Get(), m_DrawableSphere->IndexBufferFormat, 0);
@@ -449,11 +447,12 @@ void DemoScene::DrawScene()
 	m_BasicEffect.SetMaterial(m_DrawableSphere->Material);
 	m_BasicEffect.SetTexture(m_ImmediateContext.Get(), m_DrawableSphere->TextureSRV.Get());
 
-	for (int i = 0; i < m_Cloth->GetNumParticles(); ++i)
+	//Draw tiny spheres as cloth vertices
+	for (int i = 0; i < m_Softbody->GetNumParticles(); ++i)
 	{
-		auto point = m_Cloth->GetParticle(i)->m_Position;
+		auto& const point = m_Softbody->GetParticle(i)->m_Position;
 
-		XMMATRIX world = XMMatrixTranslation(point.x, point.y, point.z);
+		XMMATRIX world = XMMatrixScaling(0.3f, 0.3f, 0.3f) * XMMatrixTranslation(point.x, point.y, point.z);
 
 		m_BasicEffect.SetWorld(world);
 		m_BasicEffect.SetWorldViewProj(world * viewProj);
@@ -462,6 +461,35 @@ void DemoScene::DrawScene()
 
 		m_ImmediateContext->DrawIndexed(m_DrawableSphere->IndexCount, 0, 0);
 	}
+
+	//Check cloth collision with a giant sphere
+
+	static int direction = 1;
+	static float duration = 0.0f;
+
+	float dt = g_Timer.GetElapsedSeconds();
+
+	duration += dt;
+
+	if (duration > 5.0f)
+	{
+		duration = 0.0f;
+		direction *= -1;
+	}
+
+	m_Softbody->ApplyForce(Vector3(0.0f, -1.0f * direction, 0.0f) * dt);
+	m_Softbody->ApplyWind(Vector3(1.0f * direction, 0, -3.0f * direction) * dt); 
+	m_Softbody->Collision(SpherePos, (0.5f * 8.0f) + 1.0f);
+	m_Softbody->Update(dt);
+
+	//Draw the giant sphere
+	XMMATRIX world = XMMatrixScaling(8.0f, 8.0f, 8.0f) * XMMatrixTranslation(SpherePos.x, SpherePos.y, SpherePos.z);
+	m_BasicEffect.SetWorld(world);
+	m_BasicEffect.SetWorldViewProj(world * viewProj);
+
+	m_BasicEffect.Apply(m_ImmediateContext.Get());
+
+	m_ImmediateContext->DrawIndexed(m_DrawableSphere->IndexCount, 0, 0);
 
 	//====================================== Sky/background ======================================================//
 
@@ -473,7 +501,7 @@ void DemoScene::DrawScene()
 
 
 	m_ImmediateContext->OMSetBlendState(m_CommonStates->Opaque(), nullptr, 0xFFFFFFFF);
-	m_ImmediateContext->OMSetDepthStencilState(m_CommonStates->DepthNone(), 0);
+	//m_ImmediateContext->OMSetDepthStencilState(m_CommonStates->DepthNone(), 0);
 	m_ImmediateContext->RSSetState(m_CommonStates->CullNone());
 
 	m_DebugBasicEffect->SetView(m_Camera.GetView());
@@ -485,7 +513,7 @@ void DemoScene::DrawScene()
 	m_PrimitiveBatch->Begin();
 
 	if (drawLines)
-		m_Cloth->DrawLines(m_PrimitiveBatch.get());
+		m_Softbody->DrawLines(m_PrimitiveBatch.get());
 
 	m_PrimitiveBatch->End();
 
@@ -495,22 +523,9 @@ void DemoScene::DrawScene()
 
 	if (drawIndices)
 	{
-		/*for (int i = 0; i < 10; ++i)
+		for (int i = 0; i < m_Softbody->GetNumParticles(); ++i)
 		{
-			for (int j = 0; j < 10; ++j)
-			{
-				int rowIndex = i * 10;
-
-				auto current = grid_vertices[rowIndex];
-				auto screenSpace = m_Viewport.Project(current.position, m_Camera.GetProj(), m_Camera.GetView(), XMMatrixIdentity());
-
-				m_SpriteFont->DrawString(m_SpriteBatch.get(), std::to_wstring(rowIndex).c_str(), XMFLOAT2(screenSpace.x, screenSpace.y));
-			}
-		}*/
-
-		for (int i = 0; i < m_Cloth->GetNumParticles(); ++i)
-		{
-			auto current = m_Cloth->GetParticle(i)->m_Position;
+			auto current = m_Softbody->GetParticle(i)->m_Position;
 			auto screenSpace = m_Viewport.Project(current, m_Camera.GetProj(), m_Camera.GetView(), XMMatrixIdentity());
 
 			m_SpriteFont->DrawString(m_SpriteBatch.get(), std::to_wstring(i).c_str(), XMFLOAT2(screenSpace.x, screenSpace.y));

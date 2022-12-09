@@ -136,7 +136,7 @@
     <ClInclude Include="Inc\Particle.h">
       <Filter>Header Files\Cloth</Filter>
     </ClInclude>
-    <ClInclude Include="Inc\Cloth.h">
+    <ClInclude Include="Inc\SoftBody.h">
       <Filter>Header Files\Cloth</Filter>
     </ClInclude>
   </ItemGroup>
@@ -219,7 +219,7 @@
     <ClCompile Include="Src\Particle.cpp">
       <Filter>Source Files\Cloth</Filter>
     </ClCompile>
-    <ClCompile Include="Src\Cloth.cpp">
+    <ClCompile Include="Src\SoftBody.cpp">
       <Filter>Source Files\Cloth</Filter>
     </ClCompile>
   </ItemGroup>
