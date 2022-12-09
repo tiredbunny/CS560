@@ -28,6 +28,12 @@
     <Filter Include="Shaders\Sky">
       <UniqueIdentifier>{c4f40b53-9885-4ca6-ad96-5f0e46152888}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Cloth">
+      <UniqueIdentifier>{64c442b3-bb13-4a16-a265-3f9d12d74a53}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Cloth">
+      <UniqueIdentifier>{5738760e-65fd-4ea1-af10-f34036c3c7eb}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
@@ -127,6 +133,12 @@
     <ClInclude Include="Inc\Sky.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Inc\Particle.h">
+      <Filter>Header Files\Cloth</Filter>
+    </ClInclude>
+    <ClInclude Include="Inc\Cloth.h">
+      <Filter>Header Files\Cloth</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Src\DemoBase.cpp">
@@ -203,6 +215,12 @@
     </ClCompile>
     <ClCompile Include="Src\Sky.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Particle.cpp">
+      <Filter>Source Files\Cloth</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Cloth.cpp">
+      <Filter>Source Files\Cloth</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -3,6 +3,7 @@
 #include "imgui.h"
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx11.h"
+#include "SimpleMath.h"
 
 using namespace Microsoft::WRL;
 
@@ -180,6 +181,8 @@ void DemoBase::OnResize()
 	m_ScreenViewport.MaxDepth = 1.0f;
 	m_ScreenViewport.Width = static_cast<float>(m_ClientWidth);
 	m_ScreenViewport.Height = static_cast<float>(m_ClientHeight);
+
+	m_Viewport = DirectX::SimpleMath::Viewport(m_ScreenViewport);
 
 	m_ImmediateContext->RSSetViewports(1, &m_ScreenViewport);
 

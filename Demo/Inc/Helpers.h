@@ -76,7 +76,10 @@ namespace Helpers
 	/* tessellation is number of vertices in each dimension
 	/  so for tessellation of 8, 8*8 vertices will be generated */
 
-	void CreateGrid(std::vector<DirectX::VertexPositionNormalTexture>& vertices, std::vector<uint16_t>& indices,
+	void CreateGridXZ(std::vector<DirectX::VertexPositionNormalTexture>& vertices, std::vector<uint16_t>& indices,
+		const uint16_t width, const uint16_t depth, uint16_t tessellation = 32);
+
+	void CreateGridXY(std::vector<DirectX::VertexPositionNormalTexture>& vertices, std::vector<uint16_t>& indices,
 		const uint16_t width, const uint16_t depth, uint16_t tessellation = 32);
 };
 

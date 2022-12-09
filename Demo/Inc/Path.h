@@ -58,4 +58,3 @@ public:
 	float m_SpeedFactor; //[0, 1] & 1 = full velocity
 };
 
-extern std::unique_ptr<Path> g_Path;

@@ -176,6 +176,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Inc\Camera.h" />
+    <ClInclude Include="Inc\Cloth.h" />
     <ClInclude Include="Inc\ConstantBuffer.h" />
     <ClInclude Include="Inc\DebugDraw.h" />
     <ClInclude Include="Inc\DemoBase.h" />
@@ -194,6 +195,7 @@
     <ClInclude Include="Inc\LoadM3d.h" />
     <ClInclude Include="Inc\MathHelper.h" />
     <ClInclude Include="Inc\MeshGeometry.h" />
+    <ClInclude Include="Inc\Particle.h" />
     <ClInclude Include="Inc\Path.h" />
     <ClInclude Include="Inc\pch.h" />
     <ClInclude Include="Inc\Quaternion.h" />
@@ -208,6 +210,7 @@
   <ItemGroup>
     <ClCompile Include="Src\BasicSkinnedEffect.cpp" />
     <ClCompile Include="Src\Camera.cpp" />
+    <ClCompile Include="Src\Cloth.cpp" />
     <ClCompile Include="Src\DebugDraw.cpp" />
     <ClCompile Include="Src\DemoBase.cpp" />
     <ClCompile Include="Src\DemoScene.cpp" />
@@ -252,6 +255,7 @@
     <ClCompile Include="Src\main.cpp" />
     <ClCompile Include="Src\MathHelper.cpp" />
     <ClCompile Include="Src\MeshGeometry.cpp" />
+    <ClCompile Include="Src\Particle.cpp" />
     <ClCompile Include="Src\Path.cpp" />
     <ClCompile Include="Src\pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

@@ -11,6 +11,9 @@
 #include "Camera.h"
 #include "Path.h"
 #include "Sky.h"
+#include "Cloth.h"
+#include <SpriteFont.h>
+#include <VertexTypes.h>
 
 struct Drawable;
 
@@ -22,12 +25,9 @@ private:
 	std::unique_ptr<Drawable> m_DrawableGrid;
 	std::unique_ptr<Drawable> m_DrawableSphere;
 
-
-	std::unique_ptr<SkinnedModel> m_SkinnedModel;
-	SkinnedModelInstance m_SkinnedModelInstance;
+	std::unique_ptr<Cloth> m_Cloth;
 
 	BasicLightsEffect m_BasicEffect;
-	BasicSkinnedEffect m_SkinnedEffect;
 
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_RSFrontCounterCW;
 
@@ -35,6 +35,9 @@ private:
 	DirectionalLight m_DirLight;
 	PointLight m_PointLight;
 	SpotLight m_SpotLight;
+
+	std::unique_ptr<DirectX::SpriteBatch> m_SpriteBatch;
+	std::unique_ptr<DirectX::SpriteFont> m_SpriteFont;
 
 	//Skybox
 	Sky m_Sky;

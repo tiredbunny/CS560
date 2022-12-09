@@ -14,7 +14,6 @@ constexpr auto g_ClientHeight = 720;
 DWORD g_WindowStyle = WS_OVERLAPPEDWINDOW ^ (WS_THICKFRAME | WS_MAXIMIZEBOX);
 
 std::unique_ptr<DemoScene> g_Scene;
-std::unique_ptr<Path> g_Path;
 
 DX::StepTimer g_Timer;
 
@@ -68,7 +67,6 @@ INT WINAPI wWinMain(_In_ HINSTANCE hInstance,
 	
 
 	g_Scene = std::make_unique<DemoScene>(windowHandle);
-	g_Path = std::make_unique<Path>(g_Timer.GetTotalSeconds());
 
 	if (!g_Scene->Initialize())
 	{
