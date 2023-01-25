@@ -28,7 +28,6 @@ namespace
 }
 
 using namespace DirectX;
-using namespace SimpleMath;
 
 DemoScene::DemoScene(const HWND& hwnd) :
 	Super(hwnd)
@@ -75,24 +74,6 @@ bool DemoScene::CreateDeviceDependentResources()
 	);
 
 	m_BasicEffect.Create(m_Device.Get(), layoutPosNormalTex);
-
-
-	Microsoft::WRL::ComPtr<ID3D11InputLayout> layoutPosNormalTexSkinned;
-	DX::ThrowIfFailed
-	(
-		m_Device->CreateInputLayout(SkinnedVertex::InputElements,
-		SkinnedVertex::ElementCount,
-		g_SkinnedVS, sizeof(g_SkinnedVS),
-		layoutPosNormalTexSkinned.ReleaseAndGetAddressOf())
-	);
-
-	m_SkinnedEffect.Create(m_Device.Get(), layoutPosNormalTexSkinned);
-	m_SkinnedModel = std::make_unique<SkinnedModel>(m_Device.Get(), "Models\\soldier.m3d", L"Textures\\");
-	m_SkinnedModelInstance.Model = m_SkinnedModel.get();
-	m_SkinnedModelInstance.TimePos = 0.0f;
-	m_SkinnedModelInstance.ClipName = "Take1";
-	m_SkinnedModelInstance.FinalTransforms.resize(m_SkinnedModel->SkinnedData.BoneCount());
-	m_SkinnedModelInstance.BonePositions.resize(m_SkinnedModel->SkinnedData.BoneCount());
 
 
 	m_PrimitiveBatch = std::make_unique<PrimitiveBatch<VertexPositionColor>>(m_ImmediateContext.Get());
@@ -221,28 +202,6 @@ void DemoScene::UpdateScene(DX::StepTimer timer)
 	m_BasicEffect.SetSpotLight(m_SpotLight);
 	m_BasicEffect.ApplyPerFrameConstants(m_ImmediateContext.Get());
 
-	m_SkinnedEffect.SetEyePosition(m_Camera.GetPosition());
-	m_SkinnedEffect.SetDirectionalLight(m_DirLight);
-	m_SkinnedEffect.SetPointLight(m_PointLight);
-	m_SkinnedEffect.SetSpotLight(m_SpotLight);
-	m_SkinnedEffect.ApplyPerFrameConstants(m_ImmediateContext.Get());
-
-
-	m_SkinnedModelInstance.Update(dt);
-
-	XMMATRIX modelScale = XMMatrixScaling(0.05f, 0.05f, 0.05f);
-	XMMATRIX modelOffset = g_Path->Update(timer);
-
-	XMStoreFloat4x4(&m_SkinnedModelInstance.World, modelScale * modelOffset);
-
-	for (int i = 0; i < m_SkinnedModelInstance.BonePositions.size(); ++i)
-	{
-		XMVECTOR bone = XMLoadFloat4(&m_SkinnedModelInstance.BonePositions[i]);
-		bone = XMVector3TransformCoord(bone, XMLoadFloat4x4(&m_SkinnedModelInstance.World));
-
-		XMStoreFloat4(&m_SkinnedModelInstance.BonePositions[i], bone);
-	}
-
 
 #pragma region ImGui Widgets
 
@@ -268,7 +227,10 @@ void DemoScene::UpdateScene(DX::StepTimer timer)
 				}
 
 				if (inputWidth == m_ClientWidth && inputHeight == m_ClientHeight)
+				{
+					ImGui::End();
 					return;
+				}
 
 				//Calculate window size from client size
 				RECT wr = { 0, 0, inputWidth, inputHeight };
@@ -394,8 +356,6 @@ void DemoScene::UpdateScene(DX::StepTimer timer)
 		ImGui::End();
 	}
 
-	ImGui::Text("deltaTime: %f", dt);
-
 
 #pragma endregion
 }
@@ -404,18 +364,6 @@ void DemoScene::UpdateScene(DX::StepTimer timer)
 void DemoScene::Clear()
 {
 	static XMVECTOR backBufferColor = DirectX::Colors::Black;
-	
-	if (ImGui::Begin("Scene"))
-	{
-		ImGui::ColorEdit4("background", reinterpret_cast<float*>(&backBufferColor));
-		ImGui::End();
-	}
-
-	if (ImGui::Begin("Usage Instruction"))
-	{
-		ImGui::Text("Use WASD keys on Keyboard for movement.\nHold Right Click on Mouse to look around.");
-		ImGui::End();
-	}
 
 	m_ImmediateContext->ClearRenderTargetView(m_RenderTargetView.Get(), reinterpret_cast<float*>(&backBufferColor));
 	m_ImmediateContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
@@ -435,10 +383,6 @@ void DemoScene::DrawScene()
 	Clear();
 	PrepareForRendering();
 
-	static bool drawSkinnedModel = true;
-	static bool drawSkeleton = true;
-	static bool drawPathCurve = true;
-	
 	XMMATRIX viewProj = m_Camera.GetView() * m_Camera.GetProj();
 	UINT stride = sizeof(GeometricPrimitive::VertexType);
 	UINT offset = 0;
@@ -458,132 +402,11 @@ void DemoScene::DrawScene()
 
 	m_ImmediateContext->RSSetState(nullptr);
 
-	//control points
-	for (int i = 1; i < g_Path->m_StartingPoints.size() - 1; ++i)
-	{
-		auto& const point = g_Path->m_StartingPoints[i];
-
-		XMMATRIX world = XMMatrixTranslation(point.x, point.y, point.z);
-
-		m_BasicEffect.SetWorld(world);
-		m_BasicEffect.SetWorldViewProj(world * viewProj);
-		m_BasicEffect.SetTextureTransform(XMMatrixIdentity());
-		m_BasicEffect.SetMaterial(m_DrawableSphere->Material);
-		m_BasicEffect.SetTexture(m_ImmediateContext.Get(), m_DrawableSphere->TextureSRV.Get());
-
-		m_BasicEffect.Apply(m_ImmediateContext.Get());
-
-		m_ImmediateContext->IASetVertexBuffers(0, 1, m_DrawableSphere->VertexBuffer.GetAddressOf(), &stride, &offset);
-		m_ImmediateContext->IASetIndexBuffer(m_DrawableSphere->IndexBuffer.Get(), m_DrawableSphere->IndexBufferFormat, 0);
-		m_ImmediateContext->DrawIndexed(m_DrawableSphere->IndexCount, 0, 0);
-	}
-
-	//Joint spheres
-	for (int i = 0; i < m_SkinnedModelInstance.BonePositions.size(); ++i)
-	{
-		if (!(!drawSkinnedModel && drawSkeleton))
-			break;
-
-		auto jointPos = m_SkinnedModelInstance.BonePositions[i];
-
-		XMMATRIX world = XMMatrixScaling(0.3f, 0.3f, 0.3f) * 
-			XMMatrixTranslation(jointPos.x, jointPos.y, jointPos.z);
-			
-		m_BasicEffect.SetWorld(world);
-		m_BasicEffect.SetWorldViewProj(world * viewProj);
-
-		m_BasicEffect.Apply(m_ImmediateContext.Get());
-
-		m_ImmediateContext->DrawIndexed(m_DrawableSphere->IndexCount, 0, 0);
-	}
-	
-	//====================================== Skinned Model  ======================================//
-	
-	if (ImGui::Begin("Scene"))
-	{
-		ImGui::Checkbox("Draw Skinned Model", &drawSkinnedModel);
-
-		ImGui::End();
-	}
-
-	if (drawSkinnedModel)
-	{
-		m_ImmediateContext->RSSetState(m_RSFrontCounterCW.Get());
-		m_SkinnedEffect.Bind(m_ImmediateContext.Get());
-		m_SkinnedEffect.SetSampler(m_ImmediateContext.Get(), m_CommonStates->AnisotropicWrap());
-
-		m_SkinnedEffect.SetWorld(XMLoadFloat4x4(&m_SkinnedModelInstance.World));
-		m_SkinnedEffect.SetWorldViewProj(XMLoadFloat4x4(&m_SkinnedModelInstance.World) * viewProj);
-		m_SkinnedEffect.SetTextureTransform(XMMatrixIdentity());
-		m_SkinnedEffect.SetBoneTransforms(m_SkinnedModelInstance.FinalTransforms.data(), m_SkinnedModelInstance.FinalTransforms.size());
-
-		for (UINT subset = 0; subset < m_SkinnedModelInstance.Model->SubsetCount; ++subset)
-		{
-			m_SkinnedEffect.SetMaterial(m_SkinnedModelInstance.Model->Mat[subset]);
-			m_SkinnedEffect.SetTexture(m_ImmediateContext.Get(), m_SkinnedModelInstance.Model->DiffuseMapSRV[subset]);
-
-			m_SkinnedEffect.Apply(m_ImmediateContext.Get());
-			m_SkinnedModelInstance.Model->ModelMesh.Draw(m_ImmediateContext.Get(), subset);
-
-		}
-	}
-	
-
-
 	//====================================== Sky/background ======================================================//
 
 	m_Sky.Draw(m_ImmediateContext.Get(), m_CommonStates->LinearWrap(), m_CommonStates->CullNone(),
 		m_Camera.GetPosition3f(), viewProj, m_ClientWidth, m_ClientHeight,
 		true, XMFLOAT4(0, 0, 0, 0), XMFLOAT4(1, 1, 1, 1));
-
-	//====================================== Skeleton line & Path curve drawing ======================================//
-
-
-	if (ImGui::Begin("Scene"))
-	{
-		ImGui::Checkbox("Draw Skeleton", &drawSkeleton);
-		ImGui::Checkbox("Draw Path", &drawPathCurve);
-
-		ImGui::End();
-	}
-
-	m_ImmediateContext->OMSetBlendState(m_CommonStates->Opaque(), nullptr, 0xFFFFFFFF);
-	m_ImmediateContext->OMSetDepthStencilState(m_CommonStates->DepthNone(), 0);
-	m_ImmediateContext->RSSetState(m_CommonStates->CullNone());
-
-	m_DebugBasicEffect->SetView(m_Camera.GetView());
-	m_DebugBasicEffect->SetProjection(m_Camera.GetProj());
-	m_DebugBasicEffect->Apply(m_ImmediateContext.Get());
-
-	m_ImmediateContext->IASetInputLayout(m_DebugBasicEffectInputLayout.Get());
-
-	m_PrimitiveBatch->Begin();
-
-	if (drawSkeleton)
-	{
-		for (int i = 0; i < m_SkinnedModelInstance.BonePositions.size() - 1; ++i)
-		{
-			XMVECTOR origin = XMLoadFloat4(&m_SkinnedModelInstance.BonePositions[i]);
-			XMVECTOR direction = XMLoadFloat4(&m_SkinnedModelInstance.BonePositions[i + 1]) - origin;
-
-			if (m_SkinnedModelInstance.Model->SkinnedData.mBoneHierarchy[i + 1] == i)
-				DX::DrawRay(m_PrimitiveBatch.get(), origin, direction, false, Colors::Red);
-		}
-	}
-
-	if (drawPathCurve)
-	{
-		for (int i = 0; i < g_Path->m_PlotPoints.size() - 1; ++i)
-		{
-			auto origin = g_Path->m_PlotPoints[i];
-			auto direction = g_Path->m_PlotPoints[i + 1] - origin;
-
-			DX::DrawRay(m_PrimitiveBatch.get(), origin, direction, false, Colors::Red);
-		}
-	}
-
-	m_PrimitiveBatch->End();
-
 
 	//============================================================================================================//
 

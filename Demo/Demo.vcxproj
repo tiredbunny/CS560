@@ -191,22 +191,15 @@
     <ClInclude Include="Inc\imstb_textedit.h" />
     <ClInclude Include="Inc\imstb_truetype.h" />
     <ClInclude Include="Inc\Lights.h" />
-    <ClInclude Include="Inc\LoadM3d.h" />
     <ClInclude Include="Inc\MathHelper.h" />
-    <ClInclude Include="Inc\MeshGeometry.h" />
-    <ClInclude Include="Inc\Path.h" />
     <ClInclude Include="Inc\pch.h" />
-    <ClInclude Include="Inc\Quaternion.h" />
     <ClInclude Include="Inc\Shaders.h" />
-    <ClInclude Include="Inc\SkinnedData.h" />
-    <ClInclude Include="Inc\SkinnedModel.h" />
     <ClInclude Include="Inc\Sky.h" />
     <ClInclude Include="Inc\StepTimer.h" />
     <ClInclude Include="Inc\Timer.h" />
     <ClInclude Include="Inc\Vertex.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Src\BasicSkinnedEffect.cpp" />
     <ClCompile Include="Src\Camera.cpp" />
     <ClCompile Include="Src\DebugDraw.cpp" />
     <ClCompile Include="Src\DemoBase.cpp" />
@@ -248,11 +241,8 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="Src\LoadM3d.cpp" />
     <ClCompile Include="Src\main.cpp" />
     <ClCompile Include="Src\MathHelper.cpp" />
-    <ClCompile Include="Src\MeshGeometry.cpp" />
-    <ClCompile Include="Src\Path.cpp" />
     <ClCompile Include="Src\pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
@@ -260,8 +250,6 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="Src\BasicEffect.cpp" />
-    <ClCompile Include="Src\SkinnedData.cpp" />
-    <ClCompile Include="Src\SkinnedModel.cpp" />
     <ClCompile Include="Src\Sky.cpp" />
     <ClCompile Include="Src\SkyEffect.cpp" />
     <ClCompile Include="Src\Timer.cpp" />
@@ -295,18 +283,6 @@
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-    </FxCompile>
-    <FxCompile Include="Src\Shaders\Basic\SkinnedVertexShader.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Src\Shaders\Compiled\BasicSkinnedVS.h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Src\Shaders\Compiled\BasicSkinnedVS.h</HeaderFileOutput>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_SkinnedVS</VariableName>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-      </ObjectFileOutput>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_SkinnedVS</VariableName>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-      </ObjectFileOutput>
     </FxCompile>
     <FxCompile Include="Src\Shaders\Basic\VertexShader.hlsl">
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">g_BasicVS</VariableName>

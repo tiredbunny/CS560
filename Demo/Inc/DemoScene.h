@@ -3,13 +3,11 @@
 #include "DemoBase.h"
 #include "ConstantBuffer.h"
 #include "Shaders.h"
-#include "SkinnedModel.h"
 #include "CommonStates.h"
 #include <Effects.h>
 #include <PrimitiveBatch.h>
 #include <VertexTypes.h>
 #include "Camera.h"
-#include "Path.h"
 #include "Sky.h"
 
 struct Drawable;
@@ -22,15 +20,9 @@ private:
 	std::unique_ptr<Drawable> m_DrawableGrid;
 	std::unique_ptr<Drawable> m_DrawableSphere;
 
-
-	std::unique_ptr<SkinnedModel> m_SkinnedModel;
-	SkinnedModelInstance m_SkinnedModelInstance;
-
 	BasicLightsEffect m_BasicEffect;
-	BasicSkinnedEffect m_SkinnedEffect;
 
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_RSFrontCounterCW;
-
 
 	DirectionalLight m_DirLight;
 	PointLight m_PointLight;

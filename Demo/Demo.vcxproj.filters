@@ -94,31 +94,13 @@
     <ClInclude Include="Inc\Shaders.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Inc\SkinnedData.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Inc\MeshGeometry.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Inc\MathHelper.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Inc\LoadM3d.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Inc\SkinnedModel.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Inc\DebugDraw.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Inc\Camera.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Inc\Quaternion.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Inc\Path.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Inc\StepTimer.h">
@@ -171,31 +153,13 @@
     <ClCompile Include="Src\BasicEffect.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Src\BasicSkinnedEffect.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Src\SkinnedData.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Src\MathHelper.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Src\MeshGeometry.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Src\LoadM3d.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Src\SkinnedModel.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Src\DebugDraw.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Src\Camera.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Src\Path.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Src\SkyEffect.cpp">
@@ -210,9 +174,6 @@
       <Filter>Shaders\Basic</Filter>
     </FxCompile>
     <FxCompile Include="Src\Shaders\Basic\VertexShader.hlsl">
-      <Filter>Shaders\Basic</Filter>
-    </FxCompile>
-    <FxCompile Include="Src\Shaders\Basic\SkinnedVertexShader.hlsl">
       <Filter>Shaders\Basic</Filter>
     </FxCompile>
     <FxCompile Include="Src\Shaders\SkyPS.hlsl">

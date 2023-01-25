@@ -11,9 +11,6 @@ constexpr auto MAX_WIDTH = 3840;
 constexpr auto MAX_HEIGHT = 2160;
 
 
-//use constructor for initializing variables
-//use Initialize() for creating resources
-
 class DemoBase
 {
 protected:
