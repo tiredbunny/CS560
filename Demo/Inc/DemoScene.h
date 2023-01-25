@@ -12,6 +12,8 @@
 
 struct Drawable;
 
+auto constexpr BUFFER_COUNT = 3;
+
 class DemoScene : public DemoBase
 {
 private:
@@ -19,8 +21,6 @@ private:
 
 	std::unique_ptr<Drawable> m_DrawableGrid;
 	std::unique_ptr<Drawable> m_DrawableSphere;
-
-	BasicLightsEffect m_BasicEffect;
 
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_RSFrontCounterCW;
 
@@ -30,6 +30,17 @@ private:
 
 	//Skybox
 	Sky m_Sky;
+	
+
+	//deferred shading stuff
+	ID3D11RenderTargetView* renderTargetViewArray[BUFFER_COUNT];
+	ID3D11ShaderResourceView* shaderResourceViewArray[BUFFER_COUNT];
+	Microsoft::WRL::ComPtr<ID3D11Buffer> screenQuadVB;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> screenQuadIB;
+
+	RenderGBuffersEffect m_BasicEffect;
+	ScreenQuadEffect m_ScreenQuadEffect;
+
 
 	//Basic effect stuff for debug drawing
 	std::unique_ptr<DirectX::PrimitiveBatch<DirectX::VertexPositionColor>> m_PrimitiveBatch;
@@ -43,7 +54,7 @@ private:
 public:
 	explicit DemoScene(const HWND& hwnd);
 	DemoScene(const DemoScene&) = delete;
-	~DemoScene() = default;
+	~DemoScene();
 
 	bool Initialize() override;
 	void UpdateScene(DX::StepTimer timer) override;
@@ -57,6 +68,7 @@ private:
 	void Present();
 	bool CreateDeviceDependentResources();
 	void CreateBuffers();
+	void CreateDeferredBuffers();
 	void PrepareForRendering();
 	void ResetStates();
 	void FillBasicEffect(Drawable* drawable);

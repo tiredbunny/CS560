@@ -51,7 +51,7 @@ public:
 	}
 };
 
-class BasicLightsEffect : PipelineShaderObjects
+class RenderGBuffersEffect : PipelineShaderObjects
 {
 private:
 	struct VS_PS_CbPerObject
@@ -83,11 +83,11 @@ private:
 	ConstantBuffer<VS_PS_CbPerObject> m_CbPerObject;
 	ConstantBuffer<PS_CbPerFrame> m_CbPerFrame;
 public:
-	BasicLightsEffect() = default;
-	BasicLightsEffect(const BasicLightsEffect&) = delete;
-	BasicLightsEffect& operator=(const BasicLightsEffect&) = delete;
+	RenderGBuffersEffect() = default;
+	RenderGBuffersEffect(const RenderGBuffersEffect&) = delete;
+	RenderGBuffersEffect& operator=(const RenderGBuffersEffect&) = delete;
 
-	BasicLightsEffect(ID3D11Device* device, const	Microsoft::WRL::ComPtr<ID3D11InputLayout>& inputLayout) 
+	RenderGBuffersEffect(ID3D11Device* device, const	Microsoft::WRL::ComPtr<ID3D11InputLayout>& inputLayout) 
 	{ 
 		Create(device, inputLayout); 
 	}
@@ -113,6 +113,23 @@ public:
 	void Bind(ID3D11DeviceContext* context) const;
 };
 
+
+class ScreenQuadEffect : PipelineShaderObjects
+{
+public:
+	ScreenQuadEffect() = default;
+	ScreenQuadEffect(const ScreenQuadEffect&) = delete;
+	ScreenQuadEffect& operator=(const ScreenQuadEffect&) = delete;
+
+	ScreenQuadEffect(ID3D11Device* device, const Microsoft::WRL::ComPtr<ID3D11InputLayout>& inputLayout)
+	{
+		Create(device, inputLayout);
+	}
+
+	void Create(ID3D11Device* device, const	Microsoft::WRL::ComPtr<ID3D11InputLayout>& inputLayout);
+	void SetGBuffers(ID3D11DeviceContext* context, int bufferCount, ID3D11ShaderResourceView** srv);
+	void Bind(ID3D11DeviceContext* context) const;
+};
 
 class SkyEffect : PipelineShaderObjects
 {
@@ -146,11 +163,7 @@ public:
 		Create(device, inputLayout);
 	}
 
-	/// @brief Create
-	/// @param device 
-	/// @param inputLayout 
 	void Create(ID3D11Device* device, const	Microsoft::WRL::ComPtr<ID3D11InputLayout>& inputLayout);
-
 
 	void SetWorldViewProj(DirectX::FXMMATRIX worldViewProj);
 	void SetTextureCube(ID3D11DeviceContext* context, ID3D11ShaderResourceView* srv);
@@ -160,12 +173,7 @@ public:
 	void SetScreenResolution(DirectX::XMFLOAT2 screenRes);
 	void SetGradientColors(DirectX::XMFLOAT4 ColorA, DirectX::XMFLOAT4 ColorB);
 
-	/// @brief Apply
-	/// @param context 
+
 	void Apply(ID3D11DeviceContext* context);
-
-
-	/// @brief Bind
-	/// @param context 
 	void Bind(ID3D11DeviceContext* context) const;
 };

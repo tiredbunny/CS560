@@ -16,9 +16,6 @@
     <Filter Include="Shaders">
       <UniqueIdentifier>{8215817f-6441-4fb7-8658-31fe7cb081df}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Shaders\Basic">
-      <UniqueIdentifier>{8c082b9f-7f23-4449-b9c2-44e4a34bf0f1}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\imgui">
       <UniqueIdentifier>{a0ba3938-1998-4793-a912-8f5adb4fe9b8}</UniqueIdentifier>
     </Filter>
@@ -28,16 +25,28 @@
     <Filter Include="Shaders\Sky">
       <UniqueIdentifier>{c4f40b53-9885-4ca6-ad96-5f0e46152888}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\Deferred">
+      <UniqueIdentifier>{8c082b9f-7f23-4449-b9c2-44e4a34bf0f1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Deferred\GBuffers">
+      <UniqueIdentifier>{991c237c-1609-44d9-89a6-d396a88e1332}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Deferred\screenQuad">
+      <UniqueIdentifier>{3780093d-99a1-4b05-93ee-d4dd52131b45}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Effects">
+      <UniqueIdentifier>{c5044797-51d3-4323-be17-d9ed4f20a620}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
-    <None Include="Src\Shaders\Basic\Common.hlsli">
-      <Filter>Shaders\Basic</Filter>
-    </None>
     <None Include="Src\Shaders\Lighting.hlsli">
       <Filter>Shaders</Filter>
     </None>
     <None Include="packages.config" />
+    <None Include="Src\Shaders\Basic\Common.hlsli">
+      <Filter>Shaders\Deferred\GBuffers</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Inc\DemoBase.h">
@@ -150,9 +159,6 @@
     <ClCompile Include="Src\Helpers.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Src\BasicEffect.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Src\MathHelper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -162,25 +168,37 @@
     <ClCompile Include="Src\Camera.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Src\SkyEffect.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="Src\Sky.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Src\BasicEffect.cpp">
+      <Filter>Source Files\Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\ScreenQuadEffect.cpp">
+      <Filter>Source Files\Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\SkyEffect.cpp">
+      <Filter>Source Files\Effects</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Src\Shaders\Basic\PixelShader.hlsl">
-      <Filter>Shaders\Basic</Filter>
-    </FxCompile>
-    <FxCompile Include="Src\Shaders\Basic\VertexShader.hlsl">
-      <Filter>Shaders\Basic</Filter>
-    </FxCompile>
     <FxCompile Include="Src\Shaders\SkyPS.hlsl">
       <Filter>Shaders\Sky</Filter>
     </FxCompile>
     <FxCompile Include="Src\Shaders\SkyVS.hlsl">
       <Filter>Shaders\Sky</Filter>
+    </FxCompile>
+    <FxCompile Include="Src\Shaders\Basic\PixelShader.hlsl">
+      <Filter>Shaders\Deferred\GBuffers</Filter>
+    </FxCompile>
+    <FxCompile Include="Src\Shaders\Basic\VertexShader.hlsl">
+      <Filter>Shaders\Deferred\GBuffers</Filter>
+    </FxCompile>
+    <FxCompile Include="Src\Shaders\DeferredScreenQuadVS.hlsl">
+      <Filter>Shaders\Deferred\screenQuad</Filter>
+    </FxCompile>
+    <FxCompile Include="Src\Shaders\DeferredScreenQuadPS.hlsl">
+      <Filter>Shaders\Deferred\screenQuad</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>

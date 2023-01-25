@@ -18,46 +18,58 @@ cbuffer cbPerFrame : register(b1)
 SamplerState Sampler : register(s0);
 Texture2D DiffuseMap : register(t0); 
 
-#define NUM_LIGHTS 3
+struct PixelShaderOutput
+{
+    float4 Normal				: SV_Target0;			//Normal map
+    float4 Diffuse				: SV_Target1;			//Color
+    float4 Position				: SV_Target2;
+};
 
-float4 main(VertexOut pin) : SV_TARGET
+PixelShaderOutput main(VertexOut pin) : SV_TARGET
 {
     pin.NormalW = normalize(pin.NormalW);
     
-    float3 toEyeVector = gEyePos - pin.PosW;
-    float distToEye = length(toEyeVector);
+    //float3 toEyeVector = gEyePos - pin.PosW;
+    //float distToEye = length(toEyeVector);
+    //
+    ////normalize
+    //toEyeVector /= distToEye;
+    //
+    //LightingOutput results[NUM_LIGHTS];
+    //results[0] = ComputeDirectionalLight(gMaterial, gLight, pin.NormalW, toEyeVector);
+    //results[1] = ComputePointLight(gMaterial, gPointLight, pin.NormalW, pin.PosW, toEyeVector);
+    //results[2] = ComputeSpotLight(gMaterial, gSpotLight, pin.NormalW, pin.PosW, toEyeVector);
+    //
+    //LightingOutput result;
+    //result.Ambient = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    //result.Diffuse = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    //result.Specular = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    //
+    //[unroll]
+    //for (int i = 0; i < NUM_LIGHTS; ++i)
+    //{
+    //    result.Ambient += results[i].Ambient;
+    //    result.Diffuse += results[i].Diffuse;
+    //    result.Specular += results[i].Specular;
+    //}
+    //
+    //float4 sampleColor = DiffuseMap.Sample(Sampler, pin.Tex);
+    //float4 final = sampleColor * (result.Ambient + result.Diffuse) + result.Specular;
+    //final.a = gMaterial.Diffuse.a * sampleColor.a;
+    //
+    //[flatten]
+    //if (gFog.FogEnabled > 0.0f)
+    //{
+    //    float lerpFactor = saturate((distToEye - gFog.FogStart) / gFog.FogRange);
+    //    final.rgb = lerp(final.rgb, gFog.FogColor.rgb, lerpFactor);
+    //}
+
+    PixelShaderOutput output;
     
-    //normalize
-    toEyeVector /= distToEye;
-    
-    LightingOutput results[NUM_LIGHTS];
-    results[0] = ComputeDirectionalLight(gMaterial, gLight, pin.NormalW, toEyeVector);
-    results[1] = ComputePointLight(gMaterial, gPointLight, pin.NormalW, pin.PosW, toEyeVector);
-    results[2] = ComputeSpotLight(gMaterial, gSpotLight, pin.NormalW, pin.PosW, toEyeVector);
-    
-    LightingOutput result;
-    result.Ambient = float4(0.0f, 0.0f, 0.0f, 0.0f);
-    result.Diffuse = float4(0.0f, 0.0f, 0.0f, 0.0f);
-    result.Specular = float4(0.0f, 0.0f, 0.0f, 0.0f);
-    
-    [unroll]
-    for (int i = 0; i < NUM_LIGHTS; ++i)
-    {
-        result.Ambient += results[i].Ambient;
-        result.Diffuse += results[i].Diffuse;
-        result.Specular += results[i].Specular;
-    }
-    
-    float4 sampleColor = DiffuseMap.Sample(Sampler, pin.Tex);
-    float4 final = sampleColor * (result.Ambient + result.Diffuse) + result.Specular;
-    final.a = gMaterial.Diffuse.a * sampleColor.a;
-    
-    [flatten]
-    if (gFog.FogEnabled > 0.0f)
-    {
-        float lerpFactor = saturate((distToEye - gFog.FogStart) / gFog.FogRange);
-        final.rgb = lerp(final.rgb, gFog.FogColor.rgb, lerpFactor);
-    }
-    
-    return final;
+    output.Normal = float4(pin.NormalW, 1.0f);
+    output.Diffuse = DiffuseMap.Sample(Sampler, pin.Tex);
+    output.Position = float4(pin.PosW, 1.0f);
+
+
+    return output;
 }

@@ -13,6 +13,7 @@
 #include <VertexTypes.h>
 #include <DirectXHelpers.h>
 #include <DebugDraw.h>
+#include "Helpers.h"
 
 //Used in AdjustWindowRect(..) while resizing 
 extern DWORD g_WindowStyle;
@@ -24,7 +25,7 @@ extern DX::StepTimer g_Timer;
 namespace
 {
 	#include "Shaders\Compiled\BasicVS.h"
-	#include "Shaders\Compiled\BasicSkinnedVS.h"
+	#include "Shaders\Compiled\DeferredScreenQuadVS.h"
 }
 
 using namespace DirectX;
@@ -35,7 +36,6 @@ DemoScene::DemoScene(const HWND& hwnd) :
 	m_DrawableGrid = std::make_unique<Drawable>();
 	m_DrawableSphere = std::make_unique<Drawable>();
 
-	
 	
 	//Setup DirectionalLight
 	m_DirLight.SetDirection(XMFLOAT3(0.0f, 0.0f, 1.0f));
@@ -57,6 +57,21 @@ DemoScene::DemoScene(const HWND& hwnd) :
 
 
 	m_Camera.SetPosition(-2.0f, 5.0f, -20.0f);
+
+	for (int i = 0; i < 3; i++)
+	{
+		renderTargetViewArray[i] = nullptr;
+		shaderResourceViewArray[i] = nullptr;
+	}
+}
+
+DemoScene::~DemoScene()
+{
+	for (int i = 0; i < 3; i++)
+	{
+		renderTargetViewArray[i]->Release();
+		shaderResourceViewArray[i]->Release();
+	}
 }
 
 bool DemoScene::CreateDeviceDependentResources()
@@ -74,6 +89,18 @@ bool DemoScene::CreateDeviceDependentResources()
 	);
 
 	m_BasicEffect.Create(m_Device.Get(), layoutPosNormalTex);
+
+
+	Microsoft::WRL::ComPtr<ID3D11InputLayout> layoutPosTex;
+	DX::ThrowIfFailed
+	(
+		m_Device->CreateInputLayout(ScreenQuadVertex::InputElements,
+			ScreenQuadVertex::ElementCount,
+			g_DeferredScreenQuadVS, sizeof(g_DeferredScreenQuadVS),
+			layoutPosTex.ReleaseAndGetAddressOf())
+	);
+
+	m_ScreenQuadEffect.Create(m_Device.Get(), layoutPosTex);
 
 
 	m_PrimitiveBatch = std::make_unique<PrimitiveBatch<VertexPositionColor>>(m_ImmediateContext.Get());
@@ -108,7 +135,75 @@ bool DemoScene::CreateDeviceDependentResources()
 
 	CreateBuffers();
 
+	CreateDeferredBuffers();
+
 	return true;
+}
+
+void DemoScene::CreateDeferredBuffers()
+{
+	D3D11_TEXTURE2D_DESC textureDesc = {};
+	
+	textureDesc.Width = m_ClientWidth;
+	textureDesc.Height = m_ClientHeight;
+	textureDesc.MipLevels = 1;
+	textureDesc.ArraySize = 1;
+	textureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+	textureDesc.SampleDesc.Count = 1;
+	textureDesc.SampleDesc.Quality = 0;
+	textureDesc.Usage = D3D11_USAGE_DEFAULT;
+	textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+	textureDesc.CPUAccessFlags = 0;
+	textureDesc.MiscFlags = 0;
+
+
+	ID3D11Texture2D* renderTargetTextureArray[BUFFER_COUNT];
+
+	for (int i = 0; i < BUFFER_COUNT; i++)
+	{
+		m_Device->CreateTexture2D(&textureDesc, NULL, &renderTargetTextureArray[i]);
+	}
+
+	D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc32;
+	ZeroMemory(&renderTargetViewDesc32, sizeof(renderTargetViewDesc32));
+	renderTargetViewDesc32.Format = textureDesc.Format;
+	renderTargetViewDesc32.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+	renderTargetViewDesc32.Texture2D.MipSlice = 0;
+
+
+	//Create Render target view
+	DX::ThrowIfFailed(
+		m_Device->CreateRenderTargetView(renderTargetTextureArray[0], &renderTargetViewDesc32, &renderTargetViewArray[0])
+	);
+
+	DX::ThrowIfFailed(
+		m_Device->CreateRenderTargetView(renderTargetTextureArray[1], &renderTargetViewDesc32, &renderTargetViewArray[1])
+	);
+
+	DX::ThrowIfFailed(
+		m_Device->CreateRenderTargetView(renderTargetTextureArray[2], &renderTargetViewDesc32, &renderTargetViewArray[2])
+	);
+
+	//Shader Resource View Description
+	D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc = {};
+	shaderResourceViewDesc.Format = textureDesc.Format;
+	shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
+	shaderResourceViewDesc.Texture2D.MipLevels = 1;
+
+	for (int i = 0; i < BUFFER_COUNT; i++)
+	{
+		DX::ThrowIfFailed(
+			m_Device->CreateShaderResourceView(renderTargetTextureArray[i], &shaderResourceViewDesc, &shaderResourceViewArray[i])
+		);
+	}
+
+	//Release render target texture array
+	for (int i = 0; i < BUFFER_COUNT; i++)
+	{
+		renderTargetTextureArray[i]->Release();
+	}
+
 }
 
 void DemoScene::CreateBuffers()
@@ -116,12 +211,28 @@ void DemoScene::CreateBuffers()
 	std::vector<GeometricPrimitive::VertexType> vertices;
 	std::vector<uint16_t> indices;
 	
-	Helpers::CreateGrid(vertices, indices, 100, 100);
+	Helpers::CreateGrid(vertices, indices, 200, 200);
 	m_DrawableGrid->Create(m_Device.Get(), vertices, indices);
 
-	GeometricPrimitive::CreateSphere(vertices, indices, 0.25f, 16, false);
+	GeometricPrimitive::CreateSphere(vertices, indices, 1.0f, 16, false);
 	m_DrawableSphere->Create(m_Device.Get(), vertices, indices);
 
+	ScreenQuadVertex screenQuadVertices[] =
+	{
+		XMFLOAT4(-1.0f, -1.0f, 0.0f, 1.0f), XMFLOAT2(0.0f, 1.0f),
+		XMFLOAT4(-1.0f, +1.0f, 0.0f, 1.0f), XMFLOAT2(0.0f, 0.0f),
+		XMFLOAT4(+1.0f, +1.0f, 0.0f, 1.0f), XMFLOAT2(1.0f, 0.0f),
+		XMFLOAT4(+1.0f, -1.0f, 0.0f, 1.0f), XMFLOAT2(1.0f, 1.0f)
+	};
+
+	short screenQuadIndices[] =
+	{
+		0, 1, 2,
+		0, 2, 3
+	};
+
+	Helpers::CreateMeshBuffer(m_Device.Get(), screenQuadVertices, sizeof(screenQuadVertices) / sizeof(screenQuadVertices[0]), D3D11_BIND_VERTEX_BUFFER, screenQuadVB.ReleaseAndGetAddressOf());
+	Helpers::CreateMeshBuffer(m_Device.Get(), screenQuadIndices, sizeof(screenQuadIndices) / sizeof(screenQuadIndices[0]), D3D11_BIND_INDEX_BUFFER, screenQuadIB.ReleaseAndGetAddressOf());
 }
 
 bool DemoScene::Initialize()
@@ -202,162 +313,6 @@ void DemoScene::UpdateScene(DX::StepTimer timer)
 	m_BasicEffect.SetSpotLight(m_SpotLight);
 	m_BasicEffect.ApplyPerFrameConstants(m_ImmediateContext.Get());
 
-
-#pragma region ImGui Widgets
-
-	if (ImGui::Begin("Scene"))
-	{
-		if (ImGui::CollapsingHeader("Screen Resolution"))
-		{
-			//input of client size area
-			static int inputWidth = m_ClientWidth;
-			static int inputHeight = m_ClientHeight;
-
-			ImGui::InputInt("Width", &inputWidth, 100, 200);
-			ImGui::InputInt("Height", &inputHeight, 100, 200);
-
-			if (ImGui::Button("Apply"))
-			{
-				//Should probably clamp it on min/max values but works for now
-				if (inputWidth < MIN_WIDTH || inputHeight < MIN_HEIGHT ||
-					inputWidth > MAX_WIDTH || inputHeight > MAX_HEIGHT)
-				{
-					inputWidth = MIN_WIDTH;
-					inputHeight = MIN_HEIGHT;
-				}
-
-				if (inputWidth == m_ClientWidth && inputHeight == m_ClientHeight)
-				{
-					ImGui::End();
-					return;
-				}
-
-				//Calculate window size from client size
-				RECT wr = { 0, 0, inputWidth, inputHeight };
-				AdjustWindowRect(&wr, g_WindowStyle, 0);
-
-				UINT windowWidth = static_cast<UINT>(wr.right - wr.left);
-				UINT windowHeight = static_cast<UINT>(wr.bottom - wr.top);
-
-				//Resize window area
-				assert(SetWindowPos(m_MainWindow, 0, 0, 0, windowWidth, windowHeight,
-					SWP_NOMOVE | SWP_NOOWNERZORDER | SWP_NOZORDER) != 0);
-
-				//Resize color & depth buffers
-				Super::OnResize();
-
-			}
-		}
-
-		static XMFLOAT3 dirLightVec = m_DirLight.Direction;
-		if (ImGui::CollapsingHeader("Lights"))
-		{
-			if (ImGui::TreeNode("Directional Light"))
-			{
-				static bool isActive = true;
-				static XMFLOAT3 oldDirection;
-				static XMFLOAT4 oldAmbient;
-				if (ImGui::Checkbox("Is Active##1", &isActive))
-				{
-					if (!isActive)
-					{
-						oldDirection = dirLightVec;
-						oldAmbient = m_DirLight.Ambient;
-
-						//setting DirLightVector to zero-vector only zeros out diffuse & specular color
-						dirLightVec = XMFLOAT3(0.0f, 0.0f, 0.0f);
-						//we still need to zero out ambient color manually
-						m_DirLight.Ambient = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f);
-					}
-					else
-					{
-						m_DirLight.Ambient = oldAmbient;
-						dirLightVec = oldDirection;
-					}
-				}
-
-				ImGui::ColorEdit4("Ambient##1", reinterpret_cast<float*>(&m_DirLight.Ambient), 2);
-				ImGui::ColorEdit4("Diffuse##1", reinterpret_cast<float*>(&m_DirLight.Diffuse), 2);
-				ImGui::ColorEdit3("Specular##1", reinterpret_cast<float*>(&m_DirLight.Specular), 2);
-
-				ImGui::InputFloat3("Direction##1", reinterpret_cast<float*>(&dirLightVec), 2);
-				m_DirLight.SetDirection(dirLightVec);
-
-				ImGui::TreePop();
-			}
-
-			if (ImGui::TreeNode("Point Light"))
-			{
-				static bool isActive = true;
-				static float oldRange;
-				if (ImGui::Checkbox("Is Active##2", &isActive))
-				{
-					if (!isActive)
-					{
-						oldRange = m_PointLight.Range;
-						m_PointLight.Range = 0;
-					}
-					else
-						m_PointLight.Range = oldRange;
-				}
-
-				ImGui::ColorEdit4("Ambient##2", reinterpret_cast<float*>(&m_PointLight.Ambient), 2);
-				ImGui::ColorEdit4("Diffuse##2", reinterpret_cast<float*>(&m_PointLight.Diffuse), 2);
-				ImGui::ColorEdit3("Specular##2", reinterpret_cast<float*>(&m_PointLight.Specular), 2);
-				ImGui::DragFloat3("Position##1", reinterpret_cast<float*>(&m_PointLight.Position));
-				ImGui::InputFloat("Range##1", &m_PointLight.Range, 2);
-				ImGui::InputFloat3("Attenuation##1", reinterpret_cast<float*>(&m_PointLight.Attenuation), 2);
-
-
-				ImGui::TreePop();
-			}
-
-			if (ImGui::TreeNode("Spot Light"))
-			{
-				static bool isActive = true;
-				static float oldRange;
-				if (ImGui::Checkbox("Is Active##3", &isActive))
-				{
-					if (!isActive)
-					{
-						oldRange = m_SpotLight.Range;
-						m_SpotLight.Range = 0;
-					}
-					else
-						m_SpotLight.Range = oldRange;
-				}
-
-				ImGui::ColorEdit4("Ambient##5", reinterpret_cast<float*>(&m_SpotLight.Ambient), 2);
-				ImGui::ColorEdit4("Diffuse##5", reinterpret_cast<float*>(&m_SpotLight.Diffuse), 2);
-				ImGui::ColorEdit3("Specular##5", reinterpret_cast<float*>(&m_SpotLight.Specular), 2);
-				ImGui::DragFloat3("Position##2", reinterpret_cast<float*>(&m_SpotLight.Position));
-				ImGui::InputFloat("Range##2", reinterpret_cast<float*>(&m_SpotLight.Range), 2);
-				ImGui::InputFloat("SpotPower", &m_SpotLight.SpotPower, 2);
-				ImGui::InputFloat3("Direction##2", reinterpret_cast<float*>(&m_SpotLight.Direction), 2);
-				ImGui::InputFloat3("Attenuation##2", reinterpret_cast<float*>(&m_SpotLight.Attenuation), 2);
-
-				ImGui::TreePop();
-			}
-		}
-
-		if (ImGui::CollapsingHeader("Object Materials"))
-		{
-
-			if (ImGui::TreeNode("Grid"))
-			{
-				ImGui::InputFloat4("Ambient##6", reinterpret_cast<float*>(&m_DrawableGrid->Material.Ambient), 2);
-				ImGui::InputFloat4("Diffuse##6", reinterpret_cast<float*>(&m_DrawableGrid->Material.Diffuse), 2);
-				ImGui::InputFloat4("Specular##6", reinterpret_cast<float*>(&m_DrawableGrid->Material.Specular), 2);
-
-				ImGui::TreePop();
-			}
-		}
-
-		ImGui::End();
-	}
-
-
-#pragma endregion
 }
 
 
@@ -371,9 +326,7 @@ void DemoScene::Clear()
 
 void DemoScene::PrepareForRendering()
 {
-	m_BasicEffect.Bind(m_ImmediateContext.Get());
-	m_BasicEffect.SetSampler(m_ImmediateContext.Get(), m_CommonStates->AnisotropicWrap());
-
+	m_ImmediateContext->OMSetRenderTargets(1, m_RenderTargetView.GetAddressOf(), m_DepthStencilView.Get());
 	m_ImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
@@ -381,16 +334,25 @@ void DemoScene::PrepareForRendering()
 void DemoScene::DrawScene()
 {
 	Clear();
-	PrepareForRendering();
+	m_ImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	XMMATRIX viewProj = m_Camera.GetView() * m_Camera.GetProj();
 	UINT stride = sizeof(GeometricPrimitive::VertexType);
 	UINT offset = 0;
 
+	//====================================== Render scene in G-buffers ======================================//
 
-	//====================================== static objects ======================================//
+	m_ImmediateContext->OMSetRenderTargets(BUFFER_COUNT, renderTargetViewArray, m_DepthStencilView.Get());
 
-	static Drawable* drawables[] = { m_DrawableGrid.get() };
+	for (int i = 0; i < BUFFER_COUNT; ++i)
+		m_ImmediateContext->ClearRenderTargetView(renderTargetViewArray[i], Colors::AliceBlue);
+	
+	m_ImmediateContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
+
+	m_BasicEffect.Bind(m_ImmediateContext.Get());
+	m_BasicEffect.SetSampler(m_ImmediateContext.Get(), m_CommonStates->AnisotropicWrap());
+
+	static Drawable* drawables[] = { m_DrawableGrid.get()};
 	for (auto const& it : drawables)
 	{
 		FillBasicEffect(it);
@@ -400,7 +362,31 @@ void DemoScene::DrawScene()
 		m_ImmediateContext->DrawIndexed(it->IndexCount, 0, 0);
 	}
 
+	auto it = m_DrawableSphere.get();
+	m_ImmediateContext->IASetVertexBuffers(0, 1, it->VertexBuffer.GetAddressOf(), &stride, &offset);
+	m_ImmediateContext->IASetIndexBuffer(it->IndexBuffer.Get(), it->IndexBufferFormat, 0);
+
+	for (int i = 0; i < 10; ++i)
+	{
+		for (int j = 0; j < 10; ++j)
+		{
+			XMMATRIX world = XMMatrixTranslation(i * 10, 2.0f, j * 10);
+
+			m_BasicEffect.SetWorld(world);
+			m_BasicEffect.SetWorldViewProj(world * viewProj);
+			m_BasicEffect.SetTexture(m_ImmediateContext.Get(), it->TextureSRV.Get());
+			m_BasicEffect.Apply(m_ImmediateContext.Get());
+			m_ImmediateContext->DrawIndexed(it->IndexCount, 0, 0);
+		}
+	}
+
 	m_ImmediateContext->RSSetState(nullptr);
+
+	//==============================================================================================================//
+
+	Clear();
+	PrepareForRendering();
+
 
 	//====================================== Sky/background ======================================================//
 
@@ -408,11 +394,28 @@ void DemoScene::DrawScene()
 		m_Camera.GetPosition3f(), viewProj, m_ClientWidth, m_ClientHeight,
 		true, XMFLOAT4(0, 0, 0, 0), XMFLOAT4(1, 1, 1, 1));
 
-	//============================================================================================================//
-
 	m_ImmediateContext->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
 	m_ImmediateContext->OMSetDepthStencilState(nullptr, 0);
 	m_ImmediateContext->RSSetState(nullptr);
+
+	//============================================================================================================//
+	ImGui::Image(shaderResourceViewArray[0], ImVec2(400, 200));
+	ImGui::Image(shaderResourceViewArray[1], ImVec2(400, 200));
+	ImGui::Image(shaderResourceViewArray[2], ImVec2(400, 200));
+
+
+	//Draw full-screen quad
+	m_ScreenQuadEffect.Bind(m_ImmediateContext.Get());
+	m_ScreenQuadEffect.SetGBuffers(m_ImmediateContext.Get(), BUFFER_COUNT, shaderResourceViewArray);
+
+	stride = sizeof(ScreenQuadVertex);
+	m_ImmediateContext->IASetVertexBuffers(0, 1, screenQuadVB.GetAddressOf(), &stride, &offset);
+	m_ImmediateContext->IASetIndexBuffer(screenQuadIB.Get(), DXGI_FORMAT_R16_UINT, 0);
+
+	m_ImmediateContext->DrawIndexed(6, 0, 0);
+
+	ID3D11ShaderResourceView* nullSRV[16] = { 0 };
+	m_ImmediateContext->PSSetShaderResources(0, 16, nullSRV);
 
 	ResetStates();
 	Present();

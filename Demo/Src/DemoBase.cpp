@@ -10,7 +10,7 @@ using namespace Microsoft::WRL;
 DemoBase::DemoBase(const HWND& hwnd) :
 	m_MainWindow(hwnd), 
 	m_MSAAQuality(0),
-	M_MSAASampleCount(4),
+	M_MSAASampleCount(1),
 	m_BackBufferFormat(DXGI_FORMAT_R8G8B8A8_UNORM),
 	m_DepthStencilBufferFormat(DXGI_FORMAT_D24_UNORM_S8_UINT),
 	m_DepthStencilViewFormat(DXGI_FORMAT_D24_UNORM_S8_UINT)
