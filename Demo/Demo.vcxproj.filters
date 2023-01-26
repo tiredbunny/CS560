@@ -37,6 +37,9 @@
     <Filter Include="Source Files\Effects">
       <UniqueIdentifier>{c5044797-51d3-4323-be17-d9ed4f20a620}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\Deferred\LocalLights">
+      <UniqueIdentifier>{d4599729-430d-449b-827b-16d949b97131}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="cpp.hint" />
@@ -180,6 +183,9 @@
     <ClCompile Include="Src\SkyEffect.cpp">
       <Filter>Source Files\Effects</Filter>
     </ClCompile>
+    <ClCompile Include="Src\LocalLightEffect.cpp">
+      <Filter>Source Files\Effects</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Src\Shaders\SkyPS.hlsl">
@@ -199,6 +205,12 @@
     </FxCompile>
     <FxCompile Include="Src\Shaders\DeferredScreenQuadPS.hlsl">
       <Filter>Shaders\Deferred\screenQuad</Filter>
+    </FxCompile>
+    <FxCompile Include="Src\Shaders\LocalLightVS.hlsl">
+      <Filter>Shaders\Deferred\LocalLights</Filter>
+    </FxCompile>
+    <FxCompile Include="Src\Shaders\LocalLightPS.hlsl">
+      <Filter>Shaders\Deferred\LocalLights</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>

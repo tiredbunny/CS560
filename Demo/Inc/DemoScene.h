@@ -14,6 +14,13 @@ struct Drawable;
 
 auto constexpr BUFFER_COUNT = 3;
 
+struct LocalLight
+{
+	DirectX::XMFLOAT3 LightPos;
+	DirectX::XMFLOAT3 LightColor;
+	float range;
+};
+
 class DemoScene : public DemoBase
 {
 private:
@@ -40,7 +47,13 @@ private:
 
 	RenderGBuffersEffect m_BasicEffect;
 	ScreenQuadEffect m_ScreenQuadEffect;
+	LocalLightEffect m_LocalLightEffect;
 
+	Microsoft::WRL::ComPtr<ID3D11Buffer> sphereMeshVB;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> sphereMeshIB;
+	UINT sphereMeshIndexCount;
+
+	std::vector<LocalLight> m_LocalLights;
 
 	//Basic effect stuff for debug drawing
 	std::unique_ptr<DirectX::PrimitiveBatch<DirectX::VertexPositionColor>> m_PrimitiveBatch;

@@ -113,9 +113,67 @@ public:
 	void Bind(ID3D11DeviceContext* context) const;
 };
 
+class LocalLightEffect : PipelineShaderObjects
+{
+	struct VS_CbPerObject
+	{
+		DirectX::XMFLOAT4X4 WorldViewProj;
+
+	} m_CbPerObjectData;
+	
+	struct PS_CbPerFrame
+	{
+		DirectX::XMFLOAT3 CameraPosition;
+		float pad1;
+
+		DirectX::XMFLOAT3 LightColor;
+		float pad2;
+
+		DirectX::XMFLOAT3 LightPosition;
+		float radius;
+
+	} m_CbPerFrameData;
+
+	static_assert(sizeof(VS_CbPerObject) % 16 == 0, "struct not 16-byte aligned");
+	static_assert(sizeof(PS_CbPerFrame) % 16 == 0, "struct not 16-byte aligned");
+
+	ConstantBuffer<VS_CbPerObject> m_CbPerObject;
+	ConstantBuffer<PS_CbPerFrame> m_CbPerFrame;
+public:
+	LocalLightEffect() = default;
+	LocalLightEffect(const LocalLightEffect&) = delete;
+	LocalLightEffect& operator=(const LocalLightEffect&) = delete;
+
+	LocalLightEffect(ID3D11Device* device, const Microsoft::WRL::ComPtr<ID3D11InputLayout>& inputLayout)
+	{
+		Create(device, inputLayout);
+	}
+	
+	void SetWorldViewProj(DirectX::FXMMATRIX worldViewProj);
+	void SetCameraPosition(DirectX::XMFLOAT3 position);
+	void SetLightData(DirectX::XMFLOAT3 lightPos, DirectX::XMFLOAT3 lightColor, float radius);
+
+	void SetGBuffers(ID3D11DeviceContext* context, int bufferCount, ID3D11ShaderResourceView** srv);
+	
+	void Create(ID3D11Device* device, const	Microsoft::WRL::ComPtr<ID3D11InputLayout>& inputLayout);
+	void Apply(ID3D11DeviceContext* context);
+	void ApplyPerFrameConstants(ID3D11DeviceContext* context);
+	void Bind(ID3D11DeviceContext* context) const;
+};
 
 class ScreenQuadEffect : PipelineShaderObjects
 {
+	struct PS_CbPerFrame
+	{
+		DirectX::XMFLOAT3 LightDir;
+		float pad1;
+		DirectX::XMFLOAT3 LightColor;
+		float pad2;
+	} m_CbPerFrameData;
+
+	static_assert(sizeof(PS_CbPerFrame) % 16 == 0, "struct not 16-byte aligned");
+
+	ConstantBuffer<PS_CbPerFrame> m_CbPerFrame;
 public:
 	ScreenQuadEffect() = default;
 	ScreenQuadEffect(const ScreenQuadEffect&) = delete;
@@ -128,6 +186,9 @@ public:
 
 	void Create(ID3D11Device* device, const	Microsoft::WRL::ComPtr<ID3D11InputLayout>& inputLayout);
 	void SetGBuffers(ID3D11DeviceContext* context, int bufferCount, ID3D11ShaderResourceView** srv);
+	void SetGlobalLight(DirectX::XMFLOAT3 lightDir, DirectX::XMFLOAT3 lightColor);
+
+	void Apply(ID3D11DeviceContext* context);
 	void Bind(ID3D11DeviceContext* context) const;
 };
 

@@ -26,6 +26,7 @@ namespace
 {
 	#include "Shaders\Compiled\BasicVS.h"
 	#include "Shaders\Compiled\DeferredScreenQuadVS.h"
+	#include "Shaders\Compiled\LocalLightVS.h"
 }
 
 using namespace DirectX;
@@ -63,6 +64,21 @@ DemoScene::DemoScene(const HWND& hwnd) :
 		renderTargetViewArray[i] = nullptr;
 		shaderResourceViewArray[i] = nullptr;
 	}
+
+	for (int i = 0; i < 10; ++i)
+	{
+		for (int j = 0; j < 10; ++j)
+		{
+			LocalLight light = {};
+
+			light.LightPos = XMFLOAT3(i * 10.0f, 4.0f, j * 10.0f);
+			light.LightColor = XMFLOAT3(MathHelper::RandF(), MathHelper::RandF(), MathHelper::RandF());
+			light.range = MathHelper::RandF(10.0f, 40.0f);
+
+			m_LocalLights.push_back(light);
+		}
+
+	}
 }
 
 DemoScene::~DemoScene()
@@ -87,7 +103,6 @@ bool DemoScene::CreateDeviceDependentResources()
 		g_BasicVS, sizeof(g_BasicVS),
 		layoutPosNormalTex.ReleaseAndGetAddressOf())
 	);
-
 	m_BasicEffect.Create(m_Device.Get(), layoutPosNormalTex);
 
 
@@ -99,8 +114,19 @@ bool DemoScene::CreateDeviceDependentResources()
 			g_DeferredScreenQuadVS, sizeof(g_DeferredScreenQuadVS),
 			layoutPosTex.ReleaseAndGetAddressOf())
 	);
-
 	m_ScreenQuadEffect.Create(m_Device.Get(), layoutPosTex);
+
+
+	Microsoft::WRL::ComPtr<ID3D11InputLayout> layoutPos;
+	DX::ThrowIfFailed
+	(
+		m_Device->CreateInputLayout(VertexPosition::InputElements,
+			VertexPosition::InputElementCount,
+			g_LocalLightVS, sizeof(g_LocalLightVS),
+			layoutPos.ReleaseAndGetAddressOf())
+	);
+	m_LocalLightEffect.Create(m_Device.Get(), layoutPos);
+
 
 
 	m_PrimitiveBatch = std::make_unique<PrimitiveBatch<VertexPositionColor>>(m_ImmediateContext.Get());
@@ -157,15 +183,14 @@ void DemoScene::CreateDeferredBuffers()
 	textureDesc.MiscFlags = 0;
 
 
-	ID3D11Texture2D* renderTargetTextureArray[BUFFER_COUNT];
+	ID3D11Texture2D* renderTargetTextureArray[BUFFER_COUNT] = {};
 
 	for (int i = 0; i < BUFFER_COUNT; i++)
 	{
 		m_Device->CreateTexture2D(&textureDesc, NULL, &renderTargetTextureArray[i]);
 	}
 
-	D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc32;
-	ZeroMemory(&renderTargetViewDesc32, sizeof(renderTargetViewDesc32));
+	D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc32 = {};
 	renderTargetViewDesc32.Format = textureDesc.Format;
 	renderTargetViewDesc32.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
 	renderTargetViewDesc32.Texture2D.MipSlice = 0;
@@ -216,6 +241,17 @@ void DemoScene::CreateBuffers()
 
 	GeometricPrimitive::CreateSphere(vertices, indices, 1.0f, 16, false);
 	m_DrawableSphere->Create(m_Device.Get(), vertices, indices);
+
+	std::vector<VertexPosition> sphereVertices;
+	for (auto const& vertex : vertices)
+	{
+		sphereVertices.push_back(vertex.position);
+	}
+
+	sphereMeshIndexCount = indices.size();
+
+	Helpers::CreateMeshBuffer(m_Device.Get(), sphereVertices, D3D11_BIND_VERTEX_BUFFER, &sphereMeshVB);
+	Helpers::CreateMeshBuffer(m_Device.Get(), indices, D3D11_BIND_INDEX_BUFFER, &sphereMeshIB);
 
 	ScreenQuadVertex screenQuadVertices[] =
 	{
@@ -376,11 +412,22 @@ void DemoScene::DrawScene()
 			m_BasicEffect.SetWorldViewProj(world * viewProj);
 			m_BasicEffect.SetTexture(m_ImmediateContext.Get(), it->TextureSRV.Get());
 			m_BasicEffect.Apply(m_ImmediateContext.Get());
+
 			m_ImmediateContext->DrawIndexed(it->IndexCount, 0, 0);
 		}
 	}
 
-	m_ImmediateContext->RSSetState(nullptr);
+	//========================================== Sky/background =====================================================//
+
+	//m_Sky.Draw(m_ImmediateContext.Get(), m_CommonStates->LinearWrap(), m_CommonStates->CullNone(),
+	//	m_Camera.GetPosition3f(), viewProj, m_ClientWidth, m_ClientHeight,
+	//	true, XMFLOAT4(0, 0, 0, 0), XMFLOAT4(1, 1, 1, 1));
+
+
+	//m_ImmediateContext->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
+	//m_ImmediateContext->OMSetDepthStencilState(nullptr, 0);
+	//m_ImmediateContext->RSSetState(nullptr);
+
 
 	//==============================================================================================================//
 
@@ -388,17 +435,7 @@ void DemoScene::DrawScene()
 	PrepareForRendering();
 
 
-	//====================================== Sky/background ======================================================//
-
-	m_Sky.Draw(m_ImmediateContext.Get(), m_CommonStates->LinearWrap(), m_CommonStates->CullNone(),
-		m_Camera.GetPosition3f(), viewProj, m_ClientWidth, m_ClientHeight,
-		true, XMFLOAT4(0, 0, 0, 0), XMFLOAT4(1, 1, 1, 1));
-
-	m_ImmediateContext->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
-	m_ImmediateContext->OMSetDepthStencilState(nullptr, 0);
-	m_ImmediateContext->RSSetState(nullptr);
-
-	//============================================================================================================//
+	//============================================ lighting pass ===================================================//
 	ImGui::Image(shaderResourceViewArray[0], ImVec2(400, 200));
 	ImGui::Image(shaderResourceViewArray[1], ImVec2(400, 200));
 	ImGui::Image(shaderResourceViewArray[2], ImVec2(400, 200));
@@ -407,6 +444,8 @@ void DemoScene::DrawScene()
 	//Draw full-screen quad
 	m_ScreenQuadEffect.Bind(m_ImmediateContext.Get());
 	m_ScreenQuadEffect.SetGBuffers(m_ImmediateContext.Get(), BUFFER_COUNT, shaderResourceViewArray);
+	m_ScreenQuadEffect.SetGlobalLight(m_DirLight.Direction, XMFLOAT3(1.0f, 1.0f, 1.0f));
+	m_ScreenQuadEffect.Apply(m_ImmediateContext.Get());
 
 	stride = sizeof(ScreenQuadVertex);
 	m_ImmediateContext->IASetVertexBuffers(0, 1, screenQuadVB.GetAddressOf(), &stride, &offset);
@@ -416,6 +455,41 @@ void DemoScene::DrawScene()
 
 	ID3D11ShaderResourceView* nullSRV[16] = { 0 };
 	m_ImmediateContext->PSSetShaderResources(0, 16, nullSRV);
+
+
+	//Draw local lights
+	stride = sizeof(VertexPosition);
+	m_LocalLightEffect.Bind(m_ImmediateContext.Get());
+	
+	float blend[4] = { 1,1,1, 1};
+
+	m_ImmediateContext->OMSetDepthStencilState(m_CommonStates->DepthNone(), 0);
+	m_ImmediateContext->OMSetBlendState(m_CommonStates->Additive(), blend, 0xFFFFFFFF);
+
+	m_ImmediateContext->IASetVertexBuffers(0, 1, sphereMeshVB.GetAddressOf(), &stride, &offset);
+	m_ImmediateContext->IASetIndexBuffer(sphereMeshIB.Get(), DXGI_FORMAT_R16_UINT, 0);
+
+	m_LocalLightEffect.SetCameraPosition(m_Camera.GetPosition3f());
+	m_LocalLightEffect.SetGBuffers(m_ImmediateContext.Get(), BUFFER_COUNT, shaderResourceViewArray);
+	for (int i = 0; i < m_LocalLights.size(); ++i)
+	{
+	
+		float scale = m_LocalLights[i].range;
+
+		XMMATRIX world = XMMatrixScaling(scale, scale, scale) * XMMatrixTranslation(m_LocalLights[i].LightPos.x,
+			m_LocalLights[i].LightPos.y,
+			m_LocalLights[i].LightPos.z);
+
+		m_LocalLightEffect.SetWorldViewProj(world * viewProj);
+		m_LocalLightEffect.Apply(m_ImmediateContext.Get());
+
+		m_LocalLightEffect.SetLightData(m_LocalLights[i].LightPos, m_LocalLights[i].LightColor, m_LocalLights[i].range);
+		m_LocalLightEffect.ApplyPerFrameConstants(m_ImmediateContext.Get());
+
+		m_ImmediateContext->DrawIndexed(sphereMeshIndexCount, 0, 0);
+		
+	}
+
 
 	ResetStates();
 	Present();

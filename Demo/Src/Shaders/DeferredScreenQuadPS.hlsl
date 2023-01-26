@@ -4,14 +4,35 @@ struct VertexOut
 	float2 texCoord : TEXCOORD;
 };
 
-Texture2D Position	: register(t0);
-Texture2D NormalMap		: register(t1);
-Texture2D Texture	: register(t2);
+cbuffer cbPerFrame : register(b0)
+{
+	float3 lightDir;
+	float pad1;
+	float3 lightColor;
+	float pad2;
+}
+
+Texture2D Normal	: register(t0);
+Texture2D Diffuse		: register(t1);
+Texture2D Position	: register(t2);
 
 float4 main(VertexOut pin) : SV_TARGET
 {
-	// gl_FragCoord.xy / vec2(width,height)
+	int3 sampleIndex = int3(pin.screenSpace.xy, 0);
 
+	float3 normal = Normal.Load(sampleIndex).xyz;
+	float3 position = Position.Load(sampleIndex).xyz;
+	float3 diffuse = Diffuse.Load(sampleIndex).xyz;
+
+	float3 L = -lightDir;
+
+	normal = normalize(normal);
+
+	//float lightAmountDL = saturate(dot(normal, L));
+	//float3 color = lightColor * lightAmountDL * diffuse;
+
+	//ambient
+	float3 color = 0.1f * diffuse;
 	
-	return float4(0.0f, 1.0f, 0.0f, 1.0f);
+	return float4(color, 1.0f);
 }
