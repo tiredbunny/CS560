@@ -127,7 +127,7 @@ class LocalLightEffect : PipelineShaderObjects
 		float pad1;
 
 		DirectX::XMFLOAT3 LightColor;
-		float pad2;
+		float visualizeSphere;
 
 		DirectX::XMFLOAT3 LightPosition;
 		float radius;
@@ -152,7 +152,7 @@ public:
 	void SetWorldViewProj(DirectX::FXMMATRIX worldViewProj);
 	void SetCameraPosition(DirectX::XMFLOAT3 position);
 	void SetLightData(DirectX::XMFLOAT3 lightPos, DirectX::XMFLOAT3 lightColor, float radius);
-
+	void SetVisualizeSphere(bool enabled);
 	void SetGBuffers(ID3D11DeviceContext* context, int bufferCount, ID3D11ShaderResourceView** srv);
 	
 	void Create(ID3D11Device* device, const	Microsoft::WRL::ComPtr<ID3D11InputLayout>& inputLayout);

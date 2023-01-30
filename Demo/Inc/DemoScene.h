@@ -45,6 +45,10 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11Buffer> screenQuadVB;
 	Microsoft::WRL::ComPtr<ID3D11Buffer> screenQuadIB;
 
+	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> depthState;
+	Microsoft::WRL::ComPtr<ID3D11RasterizerState> rasterizer;
+	Microsoft::WRL::ComPtr<ID3D11BlendState> blendState;
+
 	RenderGBuffersEffect m_BasicEffect;
 	ScreenQuadEffect m_ScreenQuadEffect;
 	LocalLightEffect m_LocalLightEffect;

@@ -65,13 +65,13 @@ DemoScene::DemoScene(const HWND& hwnd) :
 		shaderResourceViewArray[i] = nullptr;
 	}
 
-	for (int i = 0; i < 10; ++i)
+	for (int i = 0; i < 20; ++i)
 	{
-		for (int j = 0; j < 10; ++j)
+		for (int j = 0; j < 20; ++j)
 		{
 			LocalLight light = {};
 
-			light.LightPos = XMFLOAT3(i * 10.0f, 4.0f, j * 10.0f);
+			light.LightPos = XMFLOAT3((i * 10) - 100.0f, 4.0f, (j * 10.0f) - 50.0f);
 			light.LightColor = XMFLOAT3(MathHelper::RandF(), MathHelper::RandF(), MathHelper::RandF());
 			light.range = MathHelper::RandF(10.0f, 40.0f);
 
@@ -141,7 +141,7 @@ bool DemoScene::CreateDeviceDependentResources()
 	m_CommonStates = std::make_unique<CommonStates>(m_Device.Get());
 
 #pragma region Load Textures
-	if FAILED(CreateDDSTextureFromFile(m_Device.Get(), m_ImmediateContext.Get(), L"Textures\\mipmaps.dds", 0, m_DrawableGrid->TextureSRV.ReleaseAndGetAddressOf()))
+	if FAILED(CreateDDSTextureFromFile(m_Device.Get(), m_ImmediateContext.Get(), L"Textures\\floor.dds", 0, m_DrawableGrid->TextureSRV.ReleaseAndGetAddressOf()))
 		return false;
 
 	if FAILED(CreateWICTextureFromFile(m_Device.Get(), m_ImmediateContext.Get(), L"Textures\\metal.jpg", 0, m_DrawableSphere->TextureSRV.ReleaseAndGetAddressOf()))
@@ -157,6 +157,44 @@ bool DemoScene::CreateDeviceDependentResources()
 		if FAILED(m_Device->CreateRasterizerState(&desc, m_RSFrontCounterCW.ReleaseAndGetAddressOf()))
 			return false;
 	}
+
+	//Rasterizer setup
+	D3D11_RASTERIZER_DESC rasterizerDesc;
+	ZeroMemory(&rasterizerDesc, sizeof(rasterizerDesc));
+	rasterizerDesc.CullMode = D3D11_CULL_BACK;
+	rasterizerDesc.FillMode = D3D11_FILL_SOLID;
+	rasterizerDesc.DepthClipEnable = false;
+
+	DX::ThrowIfFailed(
+		m_Device->CreateRasterizerState(&rasterizerDesc, &rasterizer)
+	);
+
+	//Blend state setup
+	D3D11_BLEND_DESC blendDesc;
+	ZeroMemory(&blendDesc, sizeof(blendDesc));
+	blendDesc.AlphaToCoverageEnable = false;
+	blendDesc.IndependentBlendEnable = false;
+	blendDesc.RenderTarget[0].BlendEnable = true;
+	blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
+	blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_ONE;
+	blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
+	blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
+	blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+
+	DX::ThrowIfFailed(
+		m_Device->CreateBlendState(&blendDesc, &blendState)
+	);
+
+	D3D11_DEPTH_STENCIL_DESC depthStencilDesc = {};
+	depthStencilDesc.DepthEnable = true;
+	depthStencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
+	depthStencilDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
+
+	DX::ThrowIfFailed(
+		m_Device->CreateDepthStencilState(&depthStencilDesc, &depthState)
+	);
 #pragma endregion
 
 	CreateBuffers();
@@ -236,10 +274,10 @@ void DemoScene::CreateBuffers()
 	std::vector<GeometricPrimitive::VertexType> vertices;
 	std::vector<uint16_t> indices;
 	
-	Helpers::CreateGrid(vertices, indices, 200, 200);
+	Helpers::CreateGrid(vertices, indices, 500, 500);
 	m_DrawableGrid->Create(m_Device.Get(), vertices, indices);
 
-	GeometricPrimitive::CreateSphere(vertices, indices, 1.0f, 16, false);
+	GeometricPrimitive::CreateSphere(vertices, indices, 2.0f, 16, false);
 	m_DrawableSphere->Create(m_Device.Get(), vertices, indices);
 
 	std::vector<VertexPosition> sphereVertices;
@@ -369,7 +407,6 @@ void DemoScene::PrepareForRendering()
 
 void DemoScene::DrawScene()
 {
-	Clear();
 	m_ImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 	XMMATRIX viewProj = m_Camera.GetView() * m_Camera.GetProj();
@@ -380,8 +417,10 @@ void DemoScene::DrawScene()
 
 	m_ImmediateContext->OMSetRenderTargets(BUFFER_COUNT, renderTargetViewArray, m_DepthStencilView.Get());
 
+	const float color[4] = { 0,0,0,0 };
+
 	for (int i = 0; i < BUFFER_COUNT; ++i)
-		m_ImmediateContext->ClearRenderTargetView(renderTargetViewArray[i], Colors::AliceBlue);
+		m_ImmediateContext->ClearRenderTargetView(renderTargetViewArray[i], color);
 	
 	m_ImmediateContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 
@@ -402,31 +441,18 @@ void DemoScene::DrawScene()
 	m_ImmediateContext->IASetVertexBuffers(0, 1, it->VertexBuffer.GetAddressOf(), &stride, &offset);
 	m_ImmediateContext->IASetIndexBuffer(it->IndexBuffer.Get(), it->IndexBufferFormat, 0);
 
-	for (int i = 0; i < 10; ++i)
+	for (auto const& light : m_LocalLights)
 	{
-		for (int j = 0; j < 10; ++j)
-		{
-			XMMATRIX world = XMMatrixTranslation(i * 10, 2.0f, j * 10);
+		XMMATRIX world = XMMatrixTranslation(light.LightPos.x, light.LightPos.y - 3.0f, light.LightPos.z);
 
-			m_BasicEffect.SetWorld(world);
-			m_BasicEffect.SetWorldViewProj(world * viewProj);
-			m_BasicEffect.SetTexture(m_ImmediateContext.Get(), it->TextureSRV.Get());
-			m_BasicEffect.Apply(m_ImmediateContext.Get());
+		m_BasicEffect.SetWorld(world);
+		m_BasicEffect.SetWorldViewProj(world * viewProj);
+		m_BasicEffect.SetTexture(m_ImmediateContext.Get(), it->TextureSRV.Get());
+		m_BasicEffect.Apply(m_ImmediateContext.Get());
 
-			m_ImmediateContext->DrawIndexed(it->IndexCount, 0, 0);
-		}
+		m_ImmediateContext->DrawIndexed(it->IndexCount, 0, 0);
 	}
 
-	//========================================== Sky/background =====================================================//
-
-	//m_Sky.Draw(m_ImmediateContext.Get(), m_CommonStates->LinearWrap(), m_CommonStates->CullNone(),
-	//	m_Camera.GetPosition3f(), viewProj, m_ClientWidth, m_ClientHeight,
-	//	true, XMFLOAT4(0, 0, 0, 0), XMFLOAT4(1, 1, 1, 1));
-
-
-	//m_ImmediateContext->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
-	//m_ImmediateContext->OMSetDepthStencilState(nullptr, 0);
-	//m_ImmediateContext->RSSetState(nullptr);
 
 
 	//==============================================================================================================//
@@ -436,15 +462,28 @@ void DemoScene::DrawScene()
 
 
 	//============================================ lighting pass ===================================================//
+	ID3D11ShaderResourceView* nullSRV[16] = { 0 };
+	m_ImmediateContext->PSSetShaderResources(0, 16, nullSRV);
+
 	ImGui::Image(shaderResourceViewArray[0], ImVec2(400, 200));
 	ImGui::Image(shaderResourceViewArray[1], ImVec2(400, 200));
 	ImGui::Image(shaderResourceViewArray[2], ImVec2(400, 200));
 
 
+	float blend[4] = { 1,1,1, 1 };
+	m_ImmediateContext->OMSetBlendState(m_CommonStates->Additive(), blend, 0xFFFFFFFF);
+	m_ImmediateContext->OMSetDepthStencilState(m_CommonStates->DepthNone(), 0);
+
+	ImGui::DragFloat3("Global light direction", reinterpret_cast<float*>(&m_DirLight.Direction), 0.05f, -1.0f, 1.0f);
+
+	XMVECTOR normalized = XMVector3Normalize(XMLoadFloat3(&m_DirLight.Direction));
+	XMFLOAT3 normalizedf;
+	XMStoreFloat3(&normalizedf, normalized);
+
 	//Draw full-screen quad
 	m_ScreenQuadEffect.Bind(m_ImmediateContext.Get());
 	m_ScreenQuadEffect.SetGBuffers(m_ImmediateContext.Get(), BUFFER_COUNT, shaderResourceViewArray);
-	m_ScreenQuadEffect.SetGlobalLight(m_DirLight.Direction, XMFLOAT3(1.0f, 1.0f, 1.0f));
+	m_ScreenQuadEffect.SetGlobalLight(normalizedf, XMFLOAT3(1.0f, 1.0f, 1.0f));
 	m_ScreenQuadEffect.Apply(m_ImmediateContext.Get());
 
 	stride = sizeof(ScreenQuadVertex);
@@ -453,42 +492,48 @@ void DemoScene::DrawScene()
 
 	m_ImmediateContext->DrawIndexed(6, 0, 0);
 
-	ID3D11ShaderResourceView* nullSRV[16] = { 0 };
-	m_ImmediateContext->PSSetShaderResources(0, 16, nullSRV);
-
+	static float range = 10.0f;
+	static float sphereRadius = 10.0f;
+	static bool visualizeSphere = false;
+	ImGui::DragFloat("Range", &range, 0.5f, 1.0f, 1000.0f);
+	ImGui::DragFloat("sphereRadius", &sphereRadius, 0.5f, 1.0f, 1000.0f);
+	ImGui::Checkbox("draw local light sphere", &visualizeSphere);
 
 	//Draw local lights
 	stride = sizeof(VertexPosition);
 	m_LocalLightEffect.Bind(m_ImmediateContext.Get());
 	
-	float blend[4] = { 1,1,1, 1};
-
-	m_ImmediateContext->OMSetDepthStencilState(m_CommonStates->DepthNone(), 0);
-	m_ImmediateContext->OMSetBlendState(m_CommonStates->Additive(), blend, 0xFFFFFFFF);
-
 	m_ImmediateContext->IASetVertexBuffers(0, 1, sphereMeshVB.GetAddressOf(), &stride, &offset);
 	m_ImmediateContext->IASetIndexBuffer(sphereMeshIB.Get(), DXGI_FORMAT_R16_UINT, 0);
 
 	m_LocalLightEffect.SetCameraPosition(m_Camera.GetPosition3f());
+	m_LocalLightEffect.SetVisualizeSphere(visualizeSphere);
 	m_LocalLightEffect.SetGBuffers(m_ImmediateContext.Get(), BUFFER_COUNT, shaderResourceViewArray);
 	for (int i = 0; i < m_LocalLights.size(); ++i)
 	{
 	
-		float scale = m_LocalLights[i].range;
+		float scale = sphereRadius;
 
-		XMMATRIX world = XMMatrixScaling(scale, scale, scale) * XMMatrixTranslation(m_LocalLights[i].LightPos.x,
+		XMMATRIX world = XMMatrixScaling(scale, scale, scale)* XMMatrixTranslation(m_LocalLights[i].LightPos.x,
 			m_LocalLights[i].LightPos.y,
 			m_LocalLights[i].LightPos.z);
 
 		m_LocalLightEffect.SetWorldViewProj(world * viewProj);
 		m_LocalLightEffect.Apply(m_ImmediateContext.Get());
 
-		m_LocalLightEffect.SetLightData(m_LocalLights[i].LightPos, m_LocalLights[i].LightColor, m_LocalLights[i].range);
+		m_LocalLightEffect.SetLightData(m_LocalLights[i].LightPos, m_LocalLights[i].LightColor, range);
 		m_LocalLightEffect.ApplyPerFrameConstants(m_ImmediateContext.Get());
 
 		m_ImmediateContext->DrawIndexed(sphereMeshIndexCount, 0, 0);
 		
 	}
+
+	//========================================== Sky/background =====================================================//
+	/*ResetStates();
+
+	m_Sky.Draw(m_ImmediateContext.Get(), m_CommonStates->LinearWrap(), m_CommonStates->CullNone(),
+		m_Camera.GetPosition3f(), viewProj, m_ClientWidth, m_ClientHeight,
+		true, XMFLOAT4(0, 0, 0, 0), XMFLOAT4(1, 1, 1, 1));*/
 
 
 	ResetStates();

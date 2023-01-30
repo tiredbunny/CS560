@@ -19,23 +19,9 @@ public:
 	~Sky() = default;
 	Sky() = default;
 
-	/// @brief Create
-	/// @param device 
-	/// @param cubemapFilename 
-	/// @param skySphereRadius 
+
 	void Create(ID3D11Device* device, const std::wstring& cubemapFilename, float skySphereRadius);
 
-	/// @brief Draw
-	/// @param context 
-	/// @param sampler 
-	/// @param NoCull 
-	/// @param eyePos 
-	/// @param viewProj 
-	/// @param screenWidth 
-	/// @param screenHeight 
-	/// @param useSkybox 
-	/// @param ColorA 
-	/// @param ColorB 
 	void Draw(ID3D11DeviceContext* context, ID3D11SamplerState* sampler, ID3D11RasterizerState* NoCull,
 		DirectX::XMFLOAT3 eyePos,
 		DirectX::FXMMATRIX viewProj, UINT screenWidth, UINT screenHeight,

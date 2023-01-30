@@ -27,6 +27,14 @@ void LocalLightEffect::SetLightData(DirectX::XMFLOAT3 lightPos, DirectX::XMFLOAT
 	m_CbPerFrameData.radius = radius;
 }
 
+void LocalLightEffect::SetVisualizeSphere(bool enabled)
+{
+	if (enabled)
+		m_CbPerFrameData.visualizeSphere = 1.0f;
+	else
+		m_CbPerFrameData.visualizeSphere = 0.0f;
+}
+
 void LocalLightEffect::SetGBuffers(ID3D11DeviceContext* context, int bufferCount, ID3D11ShaderResourceView** srv)
 {
 	context->PSSetShaderResources(0, bufferCount, srv);

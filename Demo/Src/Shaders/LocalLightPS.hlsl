@@ -9,7 +9,7 @@ cbuffer LightData : register(b0)
 	float pad1;
 
 	float3 lightColor;
-	float pad2;
+	float visualizeSphere;
 
 	float3 lightPosition;
 	float radius;
@@ -39,7 +39,10 @@ float4 main(VertexOut pin) : SV_TARGET
 
 	L /= dist;
 
-	float att = max(0.0f, 1.0f / (dist * dist) - 1.0f / (radius * radius));
+	float att = 1.0f / (dist) - 1.0f / (radius);
+	
+	//max(0.0f, 1.0f - (dist / 2.0f));
+
 
 	float lightAmount = saturate(dot(normal, L));
 	float3 color = lightAmount * lightColor * att;
@@ -52,12 +55,15 @@ float4 main(VertexOut pin) : SV_TARGET
 	float3 finalDiffuse = color * diffuse;
 	float3 finalSpecular = specular * diffuse * att;
 
-	float4 totalColor = float4(finalDiffuse + finalSpecular, 1.0f);
+	float4 totalColor = float4(finalDiffuse, 1.0f);
 
 	float gamma = 2.2f;
 	totalColor.r = pow(totalColor.r, 1.0f / gamma);
 	totalColor.g = pow(totalColor.g, 1.0f / gamma);
 	totalColor.b = pow(totalColor.b, 1.0f / gamma);
 
-	return totalColor;
+	if (visualizeSphere == 1.0f)
+		return float4(1.0f, 0.0f, 0.0f, 1.0f);
+	else
+		return totalColor;
 }

@@ -24,15 +24,20 @@ float4 main(VertexOut pin) : SV_TARGET
 	float3 position = Position.Load(sampleIndex).xyz;
 	float3 diffuse = Diffuse.Load(sampleIndex).xyz;
 
-	float3 L = -lightDir;
+	//float3 L = -lightDir;
 
-	normal = normalize(normal);
+	//normal = normalize(normal);
 
 	//float lightAmountDL = saturate(dot(normal, L));
 	//float3 color = lightColor * lightAmountDL * diffuse;
 
-	//ambient
-	float3 color = 0.1f * diffuse;
-	
+	//
+	//float gamma = 2.2f;
+	//color.r = pow(color.r, 1.0f / gamma);
+	//color.g = pow(color.g, 1.0f / gamma);
+	//color.b = pow(color.b, 1.0f / gamma);
+
+	float3 color = diffuse * 0.1f;
+
 	return float4(color, 1.0f);
 }

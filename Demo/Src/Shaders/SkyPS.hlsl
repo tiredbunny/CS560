@@ -18,7 +18,7 @@ cbuffer cbPerFrame : register(b0)
 TextureCube gCubeMap : register(t0);
 SamplerState gSampler : register(s0);
 
-float4 main(VertexOut pin) : SV_Target
+float4 main(VertexOut pin) : SV_Target1
 {
 	 float2 st = pin.PosH.xy / ScreenResolution;
 
