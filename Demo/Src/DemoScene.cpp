@@ -37,25 +37,19 @@ DemoScene::DemoScene(const HWND& hwnd) :
 	m_DrawableGrid = std::make_unique<Drawable>();
 	m_DrawableSphere = std::make_unique<Drawable>();
 
+	m_SceneBounds.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
+	m_SceneBounds.Radius = 100.0f;
 	
 	//Setup DirectionalLight
-	m_DirLight.SetDirection(XMFLOAT3(0.0f, 0.0f, 1.0f));
-	//Setup Pointlight
-	m_PointLight.Position = XMFLOAT3(0.0f, 2.0f, -2.0f);
-	//Setup Spotlight
-	m_SpotLight.Position = XMFLOAT3(-6.0f, 4.0f, 6.0f);
-	m_SpotLight.Direction = XMFLOAT3(0.0f, 0.0f, 1.0f);
-	m_SpotLight.SpotPower = 2.0f;
+	m_DirLight.SetDirection(XMFLOAT3(1.0f, -1.0f, 0.0f));
 
 	//Setup some material properties other than default
 
 	m_DrawableGrid->Material.Diffuse = XMFLOAT4(0.4f, 0.4f, 0.4f, 1.0f);
 	m_DrawableGrid->Material.Ambient = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 
-
 	m_DrawableSphere->Material.Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	m_DrawableSphere->Material.Ambient = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-
 
 	m_Camera.SetPosition(-2.0f, 5.0f, -20.0f);
 
@@ -65,9 +59,9 @@ DemoScene::DemoScene(const HWND& hwnd) :
 		shaderResourceViewArray[i] = nullptr;
 	}
 
-	for (int i = 0; i < 20; ++i)
+	for (int i = 0; i < 10; ++i)
 	{
-		for (int j = 0; j < 20; ++j)
+		for (int j = 0; j < 10; ++j)
 		{
 			LocalLight light = {};
 
@@ -128,6 +122,8 @@ bool DemoScene::CreateDeviceDependentResources()
 	m_LocalLightEffect.Create(m_Device.Get(), layoutPos);
 
 
+	m_ShadowMap = std::make_unique<ShadowMap>(m_Device.Get(), m_ShadowMapSize, m_ShadowMapSize);
+	m_ShadowEffect = std::make_unique<ShadowMapEffect>(m_Device.Get(), layoutPosNormalTex);
 
 	m_PrimitiveBatch = std::make_unique<PrimitiveBatch<VertexPositionColor>>(m_ImmediateContext.Get());
 	m_DebugBasicEffect = std::make_unique<BasicEffect>(m_Device.Get());
@@ -405,6 +401,47 @@ void DemoScene::PrepareForRendering()
 }
 
 
+void DemoScene::RenderToShadowMap()
+{
+	ComputeShadowTransform();
+
+	XMMATRIX view = XMLoadFloat4x4(&m_LightView);
+	XMMATRIX proj = XMLoadFloat4x4(&m_LightProj);
+	XMMATRIX viewProj = view * proj;
+
+	UINT stride = sizeof(GeometricPrimitive::VertexType);
+	UINT offset = 0;
+
+	m_ShadowEffect->Bind(m_ImmediateContext.Get());
+
+	static Drawable* drawables[] = { m_DrawableGrid.get() };
+	for (auto const& it : drawables)
+	{
+		m_ShadowEffect->SetWorldViewProj(it->GetWorld() * viewProj);
+		m_ShadowEffect->Apply(m_ImmediateContext.Get());
+
+		m_ImmediateContext->IASetVertexBuffers(0, 1, it->VertexBuffer.GetAddressOf(), &stride, &offset);
+		m_ImmediateContext->IASetIndexBuffer(it->IndexBuffer.Get(), it->IndexBufferFormat, 0);
+		m_ImmediateContext->DrawIndexed(it->IndexCount, 0, 0);
+	}
+
+	auto it = m_DrawableSphere.get();
+	m_ImmediateContext->IASetVertexBuffers(0, 1, it->VertexBuffer.GetAddressOf(), &stride, &offset);
+	m_ImmediateContext->IASetIndexBuffer(it->IndexBuffer.Get(), it->IndexBufferFormat, 0);
+
+	for (auto const& light : m_LocalLights)
+	{
+		XMMATRIX world = XMMatrixTranslation(light.LightPos.x, light.LightPos.y - 3.0f, light.LightPos.z);
+		
+		m_ShadowEffect->SetWorldViewProj(it->GetWorld() * viewProj);
+		m_ShadowEffect->Apply(m_ImmediateContext.Get());
+
+		m_ImmediateContext->DrawIndexed(it->IndexCount, 0, 0);
+	}
+}
+
+
+
 void DemoScene::DrawScene()
 {
 	m_ImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -412,6 +449,22 @@ void DemoScene::DrawScene()
 	XMMATRIX viewProj = m_Camera.GetView() * m_Camera.GetProj();
 	UINT stride = sizeof(GeometricPrimitive::VertexType);
 	UINT offset = 0;
+
+	//====================================== Render to shadow map ======================================//
+
+	m_ShadowMap->BindDSVAndSetNullRenderTarget(m_ImmediateContext.Get());
+	m_ImmediateContext->RSSetState(m_ShadowMap->GetDepthRSS());
+
+	RenderToShadowMap();
+
+	m_ImmediateContext->RSSetState(nullptr);
+	m_ImmediateContext->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
+	m_ImmediateContext->OMSetDepthStencilState(nullptr, 0);
+
+	//
+	// Restore the back and depth buffer to the OM stage.
+	//
+	m_ImmediateContext->RSSetViewports(1, &m_ScreenViewport);
 
 	//====================================== Render scene in G-buffers ======================================//
 
@@ -509,11 +562,10 @@ void DemoScene::DrawScene()
 	m_LocalLightEffect.SetCameraPosition(m_Camera.GetPosition3f());
 	m_LocalLightEffect.SetVisualizeSphere(visualizeSphere);
 	m_LocalLightEffect.SetGBuffers(m_ImmediateContext.Get(), BUFFER_COUNT, shaderResourceViewArray);
+
 	for (int i = 0; i < m_LocalLights.size(); ++i)
 	{
-	
 		float scale = sphereRadius;
-
 		XMMATRIX world = XMMatrixScaling(scale, scale, scale)* XMMatrixTranslation(m_LocalLights[i].LightPos.x,
 			m_LocalLights[i].LightPos.y,
 			m_LocalLights[i].LightPos.z);
@@ -534,6 +586,13 @@ void DemoScene::DrawScene()
 	m_Sky.Draw(m_ImmediateContext.Get(), m_CommonStates->LinearWrap(), m_CommonStates->CullNone(),
 		m_Camera.GetPosition3f(), viewProj, m_ClientWidth, m_ClientHeight,
 		true, XMFLOAT4(0, 0, 0, 0), XMFLOAT4(1, 1, 1, 1));*/
+
+	// The shadow might might be at any slot, so clear all slots.
+	m_ImmediateContext->PSSetShaderResources(0, 16, nullSRV);
+
+	ImGui::Image(m_ShadowMap->GetDepthMapShaderResourceView(), ImVec2(300, 300));
+	ImGui::DragFloat3("Center##1", reinterpret_cast<float*>(&m_SceneBounds.Center), 1.0f, -1000.0f, 1000.0f);
+	ImGui::DragFloat("Radius", &m_SceneBounds.Radius, 1.0f, 1.0f, 9000.0f);
 
 
 	ResetStates();
@@ -559,6 +618,46 @@ void DemoScene::ResetStates()
 	m_ImmediateContext->OMSetBlendState(nullptr, NULL, 0xffffffff);
 	m_ImmediateContext->OMSetDepthStencilState(nullptr, 0);
 }
+
+
+void DemoScene::ComputeShadowTransform()
+{
+	// Only the first "main" light casts a shadow.
+	XMVECTOR lightDir = XMLoadFloat3(&m_DirLight.Direction);
+	XMVECTOR lightPos = -2.0f * m_SceneBounds.Radius * lightDir;
+	XMVECTOR targetPos = XMLoadFloat3(&m_SceneBounds.Center);
+	XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+
+	XMMATRIX V = XMMatrixLookAtLH(lightPos, targetPos, up);
+
+	// Transform bounding sphere to light space.
+	XMFLOAT3 sphereCenterLS;
+	XMStoreFloat3(&sphereCenterLS, XMVector3TransformCoord(targetPos, V));
+
+	// Ortho frustum in light space encloses scene.
+	float l = sphereCenterLS.x - m_SceneBounds.Radius;
+	float b = sphereCenterLS.y - m_SceneBounds.Radius;
+	float n = sphereCenterLS.z - m_SceneBounds.Radius;
+	float r = sphereCenterLS.x + m_SceneBounds.Radius;
+	float t = sphereCenterLS.y + m_SceneBounds.Radius;
+	float f = sphereCenterLS.z + m_SceneBounds.Radius;
+	XMMATRIX P = XMMatrixOrthographicOffCenterLH(l, r, b, t, n, f);
+
+	// Transform NDC space [-1,+1]^2 to texture space [0,1]^2
+	XMMATRIX T(
+		0.5f, 0.0f, 0.0f, 0.0f,
+		0.0f, -0.5f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.5f, 0.5f, 0.0f, 1.0f);
+
+	XMMATRIX S = V * P * T;
+
+	XMStoreFloat4x4(&m_LightView, V);
+	XMStoreFloat4x4(&m_LightProj, P);
+	XMStoreFloat4x4(&m_ShadowTransform, S);
+}
+
+
 
 void DemoScene::Present()
 {

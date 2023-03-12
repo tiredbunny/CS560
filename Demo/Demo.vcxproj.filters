@@ -121,6 +121,9 @@
     <ClInclude Include="Inc\Sky.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Inc\ShadowMap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Src\DemoBase.cpp">
@@ -186,6 +189,12 @@
     <ClCompile Include="Src\LocalLightEffect.cpp">
       <Filter>Source Files\Effects</Filter>
     </ClCompile>
+    <ClCompile Include="Src\ShadowMapEffect.cpp">
+      <Filter>Source Files\Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\ShadowMap.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Src\Shaders\SkyPS.hlsl">
@@ -211,6 +220,9 @@
     </FxCompile>
     <FxCompile Include="Src\Shaders\LocalLightPS.hlsl">
       <Filter>Shaders\Deferred\LocalLights</Filter>
+    </FxCompile>
+    <FxCompile Include="Src\Shaders\ShadowMapVS.hlsl">
+      <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>

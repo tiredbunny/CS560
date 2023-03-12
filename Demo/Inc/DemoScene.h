@@ -9,6 +9,8 @@
 #include <VertexTypes.h>
 #include "Camera.h"
 #include "Sky.h"
+#include "ShadowMap.h"
+#include <DirectXCollision.h>
 
 struct Drawable;
 
@@ -59,6 +61,17 @@ private:
 
 	std::vector<LocalLight> m_LocalLights;
 
+	//Shadows stuff
+	std::unique_ptr<ShadowMap> m_ShadowMap;
+	DirectX::BoundingSphere m_SceneBounds;
+
+	static const int m_ShadowMapSize = 2048;
+	DirectX::XMFLOAT4X4 m_LightView;
+	DirectX::XMFLOAT4X4 m_LightProj;
+	DirectX::XMFLOAT4X4 m_ShadowTransform;
+
+	std::unique_ptr<ShadowMapEffect> m_ShadowEffect;
+
 	//Basic effect stuff for debug drawing
 	std::unique_ptr<DirectX::PrimitiveBatch<DirectX::VertexPositionColor>> m_PrimitiveBatch;
 	std::unique_ptr<DirectX::BasicEffect> m_DebugBasicEffect;
@@ -90,4 +103,6 @@ private:
 	void ResetStates();
 	void FillBasicEffect(Drawable* drawable);
 	
+	void ComputeShadowTransform();
+	void RenderToShadowMap();
 };

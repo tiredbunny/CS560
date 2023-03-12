@@ -26,7 +26,9 @@ public:
 		
 		m_InputLayout = inputLayout;
 		DX::ThrowIfFailed(device->CreateVertexShader(pVertexShaderByteCode, vertexShaderByteLength, nullptr, m_VertexShader.ReleaseAndGetAddressOf()));
-		DX::ThrowIfFailed(device->CreatePixelShader(pPixelShaderByteCode, pixelShaderByteLength, nullptr, m_PixelShader.ReleaseAndGetAddressOf()));
+		
+		if (pixelShaderByteLength != 0)
+			DX::ThrowIfFailed(device->CreatePixelShader(pPixelShaderByteCode, pixelShaderByteLength, nullptr, m_PixelShader.ReleaseAndGetAddressOf()));
 	}
 
 
@@ -235,6 +237,33 @@ public:
 	void SetGradientColors(DirectX::XMFLOAT4 ColorA, DirectX::XMFLOAT4 ColorB);
 
 
+	void Apply(ID3D11DeviceContext* context);
+	void Bind(ID3D11DeviceContext* context) const;
+};
+
+class ShadowMapEffect : PipelineShaderObjects
+{
+private:
+	struct VS_CbPerObject
+	{
+		DirectX::XMFLOAT4X4 WorldViewProj;
+	} m_CbPerObjectData;
+
+	static_assert(sizeof(VS_CbPerObject) % 16 == 0, "struct not 16-byte aligned");
+
+	ConstantBuffer<VS_CbPerObject> m_CbPerObject;
+public:
+	ShadowMapEffect() = default;
+	ShadowMapEffect(const ShadowMapEffect&) = delete;
+	ShadowMapEffect& operator=(const ShadowMapEffect&) = delete;
+
+	ShadowMapEffect(ID3D11Device* device, const Microsoft::WRL::ComPtr<ID3D11InputLayout>& inputLayout)
+	{
+		Create(device, inputLayout);
+	}
+	void Create(ID3D11Device* device, const	Microsoft::WRL::ComPtr<ID3D11InputLayout>& inputLayout);
+
+	void SetWorldViewProj(DirectX::FXMMATRIX WorldViewProj);
 	void Apply(ID3D11DeviceContext* context);
 	void Bind(ID3D11DeviceContext* context) const;
 };

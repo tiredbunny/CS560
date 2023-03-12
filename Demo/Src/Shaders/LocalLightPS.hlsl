@@ -40,8 +40,6 @@ float4 main(VertexOut pin) : SV_TARGET
 	L /= dist;
 
 	float att = 1.0f / (dist) - 1.0f / (radius);
-	
-	//max(0.0f, 1.0f - (dist / 2.0f));
 
 
 	float lightAmount = saturate(dot(normal, L));

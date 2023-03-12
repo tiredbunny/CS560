@@ -194,6 +194,7 @@
     <ClInclude Include="Inc\MathHelper.h" />
     <ClInclude Include="Inc\pch.h" />
     <ClInclude Include="Inc\Shaders.h" />
+    <ClInclude Include="Inc\ShadowMap.h" />
     <ClInclude Include="Inc\Sky.h" />
     <ClInclude Include="Inc\StepTimer.h" />
     <ClInclude Include="Inc\Timer.h" />
@@ -252,6 +253,8 @@
     </ClCompile>
     <ClCompile Include="Src\BasicEffect.cpp" />
     <ClCompile Include="Src\ScreenQuadEffect.cpp" />
+    <ClCompile Include="Src\ShadowMap.cpp" />
+    <ClCompile Include="Src\ShadowMapEffect.cpp" />
     <ClCompile Include="Src\Sky.cpp" />
     <ClCompile Include="Src\SkyEffect.cpp" />
     <ClCompile Include="Src\Timer.cpp" />
@@ -363,6 +366,18 @@
       <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Src\Shaders\Compiled\LocalLightVS.h</HeaderFileOutput>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_LocalLightVS</VariableName>
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_LocalLightVS</VariableName>
+    </FxCompile>
+    <FxCompile Include="Src\Shaders\ShadowMapVS.hlsl">
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_ShadowMapVS</VariableName>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+      </ObjectFileOutput>
+      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_ShadowMapVS</VariableName>
+      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+      </ObjectFileOutput>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Src\Shaders\Compiled\ShadowMapVS.h</HeaderFileOutput>
+      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Src\Shaders\Compiled\ShadowMapVS.h</HeaderFileOutput>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
     </FxCompile>
     <FxCompile Include="Src\Shaders\SkyPS.hlsl">
       <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_SkyPS</VariableName>
