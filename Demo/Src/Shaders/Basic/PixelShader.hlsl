@@ -16,7 +16,11 @@ cbuffer cbPerFrame : register(b1)
 
  
 SamplerState Sampler : register(s0);
+SamplerComparisonState SamplerShadow : register(s1);
+
+
 Texture2D DiffuseMap : register(t0); 
+Texture2D ShadowMap : register(t1);
 
 struct PixelShaderOutput
 {
@@ -29,11 +33,13 @@ PixelShaderOutput main(VertexOut pin) : SV_TARGET
 {
     pin.NormalW = normalize(pin.NormalW);
     
+    float shadow = CalcShadowFactor(SamplerShadow, ShadowMap, pin.ShadowPosH);
+
     PixelShaderOutput output;
     
     output.Normal = float4(pin.NormalW, 1.0f);
     output.Diffuse = DiffuseMap.Sample(Sampler, pin.Tex);
-    output.Position = float4(pin.PosW, 1.0f);
+    output.Position = float4(pin.PosW, shadow);
 
 
     return output;

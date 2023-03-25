@@ -32,6 +32,16 @@ void RenderGBuffersEffect::SetTextureTransform(DirectX::FXMMATRIX texTransform)
 	m_CbPerObjectData.TextureTransform = Helpers::XMMatrixToStorage(texTransform);
 }
 
+void RenderGBuffersEffect::SetShadowTransform(DirectX::FXMMATRIX transform)
+{
+	m_CbPerObjectData.ShadowTransform = Helpers::XMMatrixToStorage(transform);
+}
+
+void RenderGBuffersEffect::SetShadowSampler(ID3D11DeviceContext* context, ID3D11SamplerState* sampler)
+{
+	context->PSSetSamplers(1, 1, &sampler);
+}
+
 void RenderGBuffersEffect::SetMaterial(const Material& mat)
 {
 	m_CbPerObjectData.Material = mat;
@@ -70,6 +80,11 @@ void RenderGBuffersEffect::SetSampler(ID3D11DeviceContext* context, ID3D11Sample
 void RenderGBuffersEffect::SetTexture(ID3D11DeviceContext* context, ID3D11ShaderResourceView* srv)
 {
 	context->PSSetShaderResources(0, 1, &srv);
+}
+
+void RenderGBuffersEffect::SetShadowMap(ID3D11DeviceContext* context, ID3D11ShaderResourceView* srv)
+{
+	context->PSSetShaderResources(1, 1, &srv);
 }
 
 void RenderGBuffersEffect::Bind(ID3D11DeviceContext* context) const

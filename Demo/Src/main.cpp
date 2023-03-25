@@ -8,8 +8,8 @@
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 bool InitializeWindow(HINSTANCE hInstance, HWND& outWindowHandle);
 
-constexpr auto g_ClientWidth = 1280;
-constexpr auto g_ClientHeight = 720;
+constexpr auto g_ClientWidth = 1600;
+constexpr auto g_ClientHeight = 900;
 
 DWORD g_WindowStyle = WS_OVERLAPPEDWINDOW ^ (WS_THICKFRAME | WS_MAXIMIZEBOX);
 

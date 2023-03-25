@@ -65,7 +65,7 @@ DemoScene::DemoScene(const HWND& hwnd) :
 		{
 			LocalLight light = {};
 
-			light.LightPos = XMFLOAT3((i * 10) - 100.0f, 4.0f, (j * 10.0f) - 50.0f);
+			light.LightPos = XMFLOAT3((i * 10) - 50.0f, 4.0f, (j * 10.0f) - 40.0f);
 			light.LightColor = XMFLOAT3(MathHelper::RandF(), MathHelper::RandF(), MathHelper::RandF());
 			light.range = MathHelper::RandF(10.0f, 40.0f);
 
@@ -270,7 +270,7 @@ void DemoScene::CreateBuffers()
 	std::vector<GeometricPrimitive::VertexType> vertices;
 	std::vector<uint16_t> indices;
 	
-	Helpers::CreateGrid(vertices, indices, 500, 500);
+	Helpers::CreateGrid(vertices, indices, 100, 100);
 	m_DrawableGrid->Create(m_Device.Get(), vertices, indices);
 
 	GeometricPrimitive::CreateSphere(vertices, indices, 2.0f, 16, false);
@@ -433,7 +433,7 @@ void DemoScene::RenderToShadowMap()
 	{
 		XMMATRIX world = XMMatrixTranslation(light.LightPos.x, light.LightPos.y - 3.0f, light.LightPos.z);
 		
-		m_ShadowEffect->SetWorldViewProj(it->GetWorld() * viewProj);
+		m_ShadowEffect->SetWorldViewProj(world * viewProj);
 		m_ShadowEffect->Apply(m_ImmediateContext.Get());
 
 		m_ImmediateContext->DrawIndexed(it->IndexCount, 0, 0);
@@ -461,13 +461,12 @@ void DemoScene::DrawScene()
 	m_ImmediateContext->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
 	m_ImmediateContext->OMSetDepthStencilState(nullptr, 0);
 
+	//====================================== Render scene in G-buffers ======================================//
+	
 	//
 	// Restore the back and depth buffer to the OM stage.
 	//
 	m_ImmediateContext->RSSetViewports(1, &m_ScreenViewport);
-
-	//====================================== Render scene in G-buffers ======================================//
-
 	m_ImmediateContext->OMSetRenderTargets(BUFFER_COUNT, renderTargetViewArray, m_DepthStencilView.Get());
 
 	const float color[4] = { 0,0,0,0 };
@@ -479,6 +478,10 @@ void DemoScene::DrawScene()
 
 	m_BasicEffect.Bind(m_ImmediateContext.Get());
 	m_BasicEffect.SetSampler(m_ImmediateContext.Get(), m_CommonStates->AnisotropicWrap());
+	m_BasicEffect.SetShadowTransform(XMLoadFloat4x4(&m_ShadowTransform));
+	m_BasicEffect.SetDirectionalLight(m_DirLight);
+	m_BasicEffect.SetShadowMap(m_ImmediateContext.Get(), m_ShadowMap->GetDepthMapShaderResourceView());
+	m_BasicEffect.SetShadowSampler(m_ImmediateContext.Get(), m_ShadowMap->GetShadowSampler());
 
 	static Drawable* drawables[] = { m_DrawableGrid.get()};
 	for (auto const& it : drawables)
@@ -506,28 +509,34 @@ void DemoScene::DrawScene()
 		m_ImmediateContext->DrawIndexed(it->IndexCount, 0, 0);
 	}
 
-
-
-	//==============================================================================================================//
-
+	//============================================ lighting pass ===================================================//
 	Clear();
 	PrepareForRendering();
 
-
-	//============================================ lighting pass ===================================================//
 	ID3D11ShaderResourceView* nullSRV[16] = { 0 };
 	m_ImmediateContext->PSSetShaderResources(0, 16, nullSRV);
 
+	//------------------ imgui junk ------------------------------------------------//
 	ImGui::Image(shaderResourceViewArray[0], ImVec2(400, 200));
 	ImGui::Image(shaderResourceViewArray[1], ImVec2(400, 200));
 	ImGui::Image(shaderResourceViewArray[2], ImVec2(400, 200));
+	ImGui::DragFloat3("Global light direction", reinterpret_cast<float*>(&m_DirLight.Direction), 0.05f, -1.0f, 1.0f);
 
+	static float range = 10.0f;
+	static float sphereRadius = 10.0f;
+	static bool visualizeSphere = false;
+	ImGui::DragFloat("Range", &range, 0.5f, 1.0f, 1000.0f);
+	ImGui::DragFloat("sphereRadius", &sphereRadius, 0.5f, 1.0f, 1000.0f);
+	ImGui::Checkbox("draw local light sphere", &visualizeSphere);
 
-	float blend[4] = { 1,1,1, 1 };
+	ImGui::DragFloat3("Center##1", reinterpret_cast<float*>(&m_SceneBounds.Center), 1.0f, -1000.0f, 1000.0f);
+	ImGui::DragFloat("Radius", &m_SceneBounds.Radius, 1.0f, 1.0f, 9000.0f);
+	//-----------------------------------------------------------------------------//
+
+	float blend[4] = { 1,1,1, 1};
 	m_ImmediateContext->OMSetBlendState(m_CommonStates->Additive(), blend, 0xFFFFFFFF);
 	m_ImmediateContext->OMSetDepthStencilState(m_CommonStates->DepthNone(), 0);
 
-	ImGui::DragFloat3("Global light direction", reinterpret_cast<float*>(&m_DirLight.Direction), 0.05f, -1.0f, 1.0f);
 
 	XMVECTOR normalized = XMVector3Normalize(XMLoadFloat3(&m_DirLight.Direction));
 	XMFLOAT3 normalizedf;
@@ -542,15 +551,7 @@ void DemoScene::DrawScene()
 	stride = sizeof(ScreenQuadVertex);
 	m_ImmediateContext->IASetVertexBuffers(0, 1, screenQuadVB.GetAddressOf(), &stride, &offset);
 	m_ImmediateContext->IASetIndexBuffer(screenQuadIB.Get(), DXGI_FORMAT_R16_UINT, 0);
-
 	m_ImmediateContext->DrawIndexed(6, 0, 0);
-
-	static float range = 10.0f;
-	static float sphereRadius = 10.0f;
-	static bool visualizeSphere = false;
-	ImGui::DragFloat("Range", &range, 0.5f, 1.0f, 1000.0f);
-	ImGui::DragFloat("sphereRadius", &sphereRadius, 0.5f, 1.0f, 1000.0f);
-	ImGui::Checkbox("draw local light sphere", &visualizeSphere);
 
 	//Draw local lights
 	stride = sizeof(VertexPosition);
@@ -558,7 +559,6 @@ void DemoScene::DrawScene()
 	
 	m_ImmediateContext->IASetVertexBuffers(0, 1, sphereMeshVB.GetAddressOf(), &stride, &offset);
 	m_ImmediateContext->IASetIndexBuffer(sphereMeshIB.Get(), DXGI_FORMAT_R16_UINT, 0);
-
 	m_LocalLightEffect.SetCameraPosition(m_Camera.GetPosition3f());
 	m_LocalLightEffect.SetVisualizeSphere(visualizeSphere);
 	m_LocalLightEffect.SetGBuffers(m_ImmediateContext.Get(), BUFFER_COUNT, shaderResourceViewArray);
@@ -566,13 +566,13 @@ void DemoScene::DrawScene()
 	for (int i = 0; i < m_LocalLights.size(); ++i)
 	{
 		float scale = sphereRadius;
-		XMMATRIX world = XMMatrixScaling(scale, scale, scale)* XMMatrixTranslation(m_LocalLights[i].LightPos.x,
+		XMMATRIX world = XMMatrixScaling(scale, scale, scale) * 
+			XMMatrixTranslation(m_LocalLights[i].LightPos.x,
 			m_LocalLights[i].LightPos.y,
 			m_LocalLights[i].LightPos.z);
 
 		m_LocalLightEffect.SetWorldViewProj(world * viewProj);
 		m_LocalLightEffect.Apply(m_ImmediateContext.Get());
-
 		m_LocalLightEffect.SetLightData(m_LocalLights[i].LightPos, m_LocalLights[i].LightColor, range);
 		m_LocalLightEffect.ApplyPerFrameConstants(m_ImmediateContext.Get());
 
@@ -591,9 +591,6 @@ void DemoScene::DrawScene()
 	m_ImmediateContext->PSSetShaderResources(0, 16, nullSRV);
 
 	ImGui::Image(m_ShadowMap->GetDepthMapShaderResourceView(), ImVec2(300, 300));
-	ImGui::DragFloat3("Center##1", reinterpret_cast<float*>(&m_SceneBounds.Center), 1.0f, -1000.0f, 1000.0f);
-	ImGui::DragFloat("Radius", &m_SceneBounds.Radius, 1.0f, 1.0f, 9000.0f);
-
 
 	ResetStates();
 	Present();

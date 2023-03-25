@@ -62,6 +62,7 @@ private:
 		DirectX::XMFLOAT4X4 World;
 		DirectX::XMFLOAT4X4 WorldInvTranspose;
 		DirectX::XMFLOAT4X4 TextureTransform;
+		DirectX::XMFLOAT4X4 ShadowTransform;
 		Material Material;
 
 	} m_CbPerObjectData;
@@ -99,6 +100,10 @@ public:
 	void SetWorld(DirectX::FXMMATRIX world);
 	void SetWorldViewProj(DirectX::FXMMATRIX worldViewProj);
 	void SetTextureTransform(DirectX::FXMMATRIX texTransform);
+
+	void SetShadowTransform(DirectX::FXMMATRIX shadowTransform);
+	void SetShadowSampler(ID3D11DeviceContext* context, ID3D11SamplerState* sampler);
+	
 	void SetMaterial(const Material& mat);
 	void Apply(ID3D11DeviceContext* context);
 
@@ -111,6 +116,7 @@ public:
 	
 	void SetSampler(ID3D11DeviceContext* context, ID3D11SamplerState* sampler);
 	void SetTexture(ID3D11DeviceContext* context, ID3D11ShaderResourceView* srv);
+	void SetShadowMap(ID3D11DeviceContext* context, ID3D11ShaderResourceView* srv);
 
 	void Bind(ID3D11DeviceContext* context) const;
 };
