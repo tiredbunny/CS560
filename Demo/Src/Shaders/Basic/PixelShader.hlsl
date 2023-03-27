@@ -33,7 +33,15 @@ PixelShaderOutput main(VertexOut pin) : SV_TARGET
 {
     pin.NormalW = normalize(pin.NormalW);
     
-    float shadow = CalcShadowFactor(SamplerShadow, ShadowMap, pin.ShadowPosH);
+    // Complete projection by doing division by w.
+    pin.ShadowPosH.xyz /= pin.ShadowPosH.w;
+
+    // Depth in NDC space.
+    float depth = pin.ShadowPosH.z;
+
+    float lightDepth = ShadowMap.Sample(Sampler, pin.ShadowPosH.xy);
+
+    float shadow = lightDepth > depth ? 1.0f : 0.0f;
 
     PixelShaderOutput output;
     

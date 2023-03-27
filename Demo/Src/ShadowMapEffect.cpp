@@ -4,13 +4,15 @@
 namespace
 {
 #include "Shaders/Compiled/ShadowMapVS.h"
+#include "Shaders/Compiled/ShadowMapPS.h"
 }
 
 using namespace DirectX;
 
 void ShadowMapEffect::Create(ID3D11Device* device, const Microsoft::WRL::ComPtr<ID3D11InputLayout>& inputLayout)
 {
-	PipelineShaderObjects::Create(device, inputLayout, g_ShadowMapVS, sizeof(g_ShadowMapVS), nullptr, 0);
+	PipelineShaderObjects::Create(device, inputLayout, g_ShadowMapVS, sizeof(g_ShadowMapVS),
+		g_ShadowMapPS, sizeof(g_ShadowMapPS));
 	m_CbPerObject.Create(device);
 }
 

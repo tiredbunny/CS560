@@ -9,18 +9,24 @@ public:
 	ShadowMap(ID3D11Device* device, UINT width, UINT height);
 	~ShadowMap();
 
-	ID3D11ShaderResourceView* GetDepthMapShaderResourceView();
+
+	//Moment map 
+	ID3D11ShaderResourceView* GetDepthMapSRV();
+	ID3D11UnorderedAccessView* GetDepthMapUAV();
 
 	ID3D11SamplerState* GetShadowSampler() const { return m_SamplerShadow.Get(); }
 	ID3D11RasterizerState* GetDepthRSS() const { return m_DepthRSS.Get(); }
 
-	void BindDSVAndSetNullRenderTarget(ID3D11DeviceContext* context);
+	void BindDSVAndRTV(ID3D11DeviceContext* context);
 private:
 	UINT m_Width;
 	UINT m_Height;
 
+
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_DepthMapSRV;
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilView> m_DepthMapDSV;
+	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_DepthMapRTV;
+	Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView> m_DepthMapUAV;
 
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_DepthRSS;
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> m_SamplerShadow;

@@ -10,6 +10,7 @@
 #include "Camera.h"
 #include "Sky.h"
 #include "ShadowMap.h"
+#include "Blur.h"
 #include <DirectXCollision.h>
 
 struct Drawable;
@@ -63,6 +64,7 @@ private:
 
 	//Shadows stuff
 	std::unique_ptr<ShadowMap> m_ShadowMap;
+	std::unique_ptr<BlurFilter> m_BlurFilter;
 	DirectX::BoundingSphere m_SceneBounds;
 
 	static const int m_ShadowMapSize = 2048;

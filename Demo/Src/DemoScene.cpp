@@ -53,7 +53,7 @@ DemoScene::DemoScene(const HWND& hwnd) :
 
 	m_Camera.SetPosition(-2.0f, 5.0f, -20.0f);
 
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < BUFFER_COUNT; i++)
 	{
 		renderTargetViewArray[i] = nullptr;
 		shaderResourceViewArray[i] = nullptr;
@@ -77,7 +77,7 @@ DemoScene::DemoScene(const HWND& hwnd) :
 
 DemoScene::~DemoScene()
 {
-	for (int i = 0; i < 3; i++)
+	for (int i = 0; i < BUFFER_COUNT; i++)
 	{
 		renderTargetViewArray[i]->Release();
 		shaderResourceViewArray[i]->Release();
@@ -135,6 +135,8 @@ bool DemoScene::CreateDeviceDependentResources()
 	);
 
 	m_CommonStates = std::make_unique<CommonStates>(m_Device.Get());
+
+	m_BlurFilter = std::make_unique<BlurFilter>(m_Device.Get(), m_ShadowMapSize, m_ShadowMapSize, DXGI_FORMAT_R32G32B32A32_FLOAT);
 
 #pragma region Load Textures
 	if FAILED(CreateDDSTextureFromFile(m_Device.Get(), m_ImmediateContext.Get(), L"Textures\\floor.dds", 0, m_DrawableGrid->TextureSRV.ReleaseAndGetAddressOf()))
@@ -216,12 +218,14 @@ void DemoScene::CreateDeferredBuffers()
 	textureDesc.CPUAccessFlags = 0;
 	textureDesc.MiscFlags = 0;
 
-
+	
 	ID3D11Texture2D* renderTargetTextureArray[BUFFER_COUNT] = {};
 
 	for (int i = 0; i < BUFFER_COUNT; i++)
 	{
-		m_Device->CreateTexture2D(&textureDesc, NULL, &renderTargetTextureArray[i]);
+		DX::ThrowIfFailed(
+			m_Device->CreateTexture2D(&textureDesc, NULL, &renderTargetTextureArray[i])
+			);
 	}
 
 	D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc32 = {};
@@ -230,19 +234,14 @@ void DemoScene::CreateDeferredBuffers()
 	renderTargetViewDesc32.Texture2D.MipSlice = 0;
 
 
-	//Create Render target view
-	DX::ThrowIfFailed(
-		m_Device->CreateRenderTargetView(renderTargetTextureArray[0], &renderTargetViewDesc32, &renderTargetViewArray[0])
-	);
-
-	DX::ThrowIfFailed(
-		m_Device->CreateRenderTargetView(renderTargetTextureArray[1], &renderTargetViewDesc32, &renderTargetViewArray[1])
-	);
-
-	DX::ThrowIfFailed(
-		m_Device->CreateRenderTargetView(renderTargetTextureArray[2], &renderTargetViewDesc32, &renderTargetViewArray[2])
-	);
-
+	for (int i = 0; i < BUFFER_COUNT; ++i)
+	{
+		//Create Render target view
+		DX::ThrowIfFailed(
+			m_Device->CreateRenderTargetView(renderTargetTextureArray[i], &renderTargetViewDesc32, &renderTargetViewArray[i])
+		);
+	}
+	
 	//Shader Resource View Description
 	D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc = {};
 	shaderResourceViewDesc.Format = textureDesc.Format;
@@ -452,11 +451,24 @@ void DemoScene::DrawScene()
 
 	//====================================== Render to shadow map ======================================//
 
-	m_ShadowMap->BindDSVAndSetNullRenderTarget(m_ImmediateContext.Get());
+	m_ShadowMap->BindDSVAndRTV(m_ImmediateContext.Get());
 	m_ImmediateContext->RSSetState(m_ShadowMap->GetDepthRSS());
 
 	RenderToShadowMap();
 
+	ID3D11RenderTargetView* nullRTV[1] = { nullptr };
+
+	m_ImmediateContext->OMSetRenderTargets(1, nullRTV, nullptr);
+
+	static bool blurShadowMap = true;
+
+	ImGui::Checkbox("Blur Shadow Map", &blurShadowMap);
+
+	if (blurShadowMap)
+	{
+		m_BlurFilter->BlurInPlace(m_ImmediateContext.Get(), m_ShadowMap->GetDepthMapSRV(), m_ShadowMap->GetDepthMapUAV());
+	}
+	
 	m_ImmediateContext->RSSetState(nullptr);
 	m_ImmediateContext->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
 	m_ImmediateContext->OMSetDepthStencilState(nullptr, 0);
@@ -480,7 +492,7 @@ void DemoScene::DrawScene()
 	m_BasicEffect.SetSampler(m_ImmediateContext.Get(), m_CommonStates->AnisotropicWrap());
 	m_BasicEffect.SetShadowTransform(XMLoadFloat4x4(&m_ShadowTransform));
 	m_BasicEffect.SetDirectionalLight(m_DirLight);
-	m_BasicEffect.SetShadowMap(m_ImmediateContext.Get(), m_ShadowMap->GetDepthMapShaderResourceView());
+	m_BasicEffect.SetShadowMap(m_ImmediateContext.Get(), m_ShadowMap->GetDepthMapSRV());
 	m_BasicEffect.SetShadowSampler(m_ImmediateContext.Get(), m_ShadowMap->GetShadowSampler());
 
 	static Drawable* drawables[] = { m_DrawableGrid.get()};
@@ -517,9 +529,10 @@ void DemoScene::DrawScene()
 	m_ImmediateContext->PSSetShaderResources(0, 16, nullSRV);
 
 	//------------------ imgui junk ------------------------------------------------//
-	ImGui::Image(shaderResourceViewArray[0], ImVec2(400, 200));
-	ImGui::Image(shaderResourceViewArray[1], ImVec2(400, 200));
-	ImGui::Image(shaderResourceViewArray[2], ImVec2(400, 200));
+
+	//for (int i = 0; i < BUFFER_COUNT; ++i)
+	//	ImGui::Image(shaderResourceViewArray[i], ImVec2(400, 200));
+
 	ImGui::DragFloat3("Global light direction", reinterpret_cast<float*>(&m_DirLight.Direction), 0.05f, -1.0f, 1.0f);
 
 	static float range = 10.0f;
@@ -590,7 +603,7 @@ void DemoScene::DrawScene()
 	// The shadow might might be at any slot, so clear all slots.
 	m_ImmediateContext->PSSetShaderResources(0, 16, nullSRV);
 
-	ImGui::Image(m_ShadowMap->GetDepthMapShaderResourceView(), ImVec2(300, 300));
+	ImGui::Image(m_ShadowMap->GetDepthMapSRV(), ImVec2(300, 300));
 
 	ResetStates();
 	Present();

@@ -3,7 +3,7 @@
 
 
 ShadowMap::ShadowMap(ID3D11Device* device, UINT width, UINT height)
-    : m_Width(width), m_Height(height), m_DepthMapSRV(0), m_DepthMapDSV(0)
+    : m_Width(width), m_Height(height), m_DepthMapDSV(0)
 {
     m_Viewport.TopLeftX = 0.0f;
     m_Viewport.TopLeftY = 0.0f;
@@ -12,6 +12,9 @@ ShadowMap::ShadowMap(ID3D11Device* device, UINT width, UINT height)
     m_Viewport.MinDepth = 0.0f;
     m_Viewport.MaxDepth = 1.0f;
 
+
+    //================================ create depth buffer and depth stencil view ==================================//
+    
     // Use typeless format because the DSV is going to interpret
     // the bits as DXGI_FORMAT_D24_UNORM_S8_UINT, whereas the SRV is going to interpret
     // the bits as DXGI_FORMAT_R24_UNORM_X8_TYPELESS.
@@ -24,7 +27,7 @@ ShadowMap::ShadowMap(ID3D11Device* device, UINT width, UINT height)
     texDesc.SampleDesc.Count = 1;
     texDesc.SampleDesc.Quality = 0;
     texDesc.Usage = D3D11_USAGE_DEFAULT;
-    texDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE;
+    texDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL; /*| D3D11_BIND_SHADER_RESOURCE;*/
     texDesc.CPUAccessFlags = 0;
     texDesc.MiscFlags = 0;
 
@@ -38,12 +41,56 @@ ShadowMap::ShadowMap(ID3D11Device* device, UINT width, UINT height)
     dsvDesc.Texture2D.MipSlice = 0;
     DX::ThrowIfFailed(device->CreateDepthStencilView(depthMap.Get(), &dsvDesc, &m_DepthMapDSV));
 
-    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
+ /*   D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
     srvDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
     srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
     srvDesc.Texture2D.MipLevels = texDesc.MipLevels;
     srvDesc.Texture2D.MostDetailedMip = 0;
-    DX::ThrowIfFailed(device->CreateShaderResourceView(depthMap.Get(), &srvDesc, &m_DepthMapSRV));
+    DX::ThrowIfFailed(device->CreateShaderResourceView(depthMap.Get(), &srvDesc, &m_SingleChannelDepthMapSRV));*/
+
+
+    //=============================== create frame buffer and render target view ====================================//
+
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> tempTexture;
+    texDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+    texDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+    DX::ThrowIfFailed(
+        device->CreateTexture2D(&texDesc, NULL, &tempTexture)
+    );
+
+
+    D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc32 = {};
+    renderTargetViewDesc32.Format = texDesc.Format;
+    renderTargetViewDesc32.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+    renderTargetViewDesc32.Texture2D.MipSlice = 0;
+
+    
+    //Create Render target view
+    DX::ThrowIfFailed(
+        device->CreateRenderTargetView(tempTexture.Get(), &renderTargetViewDesc32, &m_DepthMapRTV)
+	);
+
+    D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc = {};
+    shaderResourceViewDesc.Format = texDesc.Format;
+    shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
+    shaderResourceViewDesc.Texture2D.MipLevels = 1;
+
+    //Create SRV
+	DX::ThrowIfFailed(
+		device->CreateShaderResourceView(tempTexture.Get(), &shaderResourceViewDesc, &m_DepthMapSRV)
+	);
+    
+
+    D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+    uavDesc.Format = texDesc.Format;
+    uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+    uavDesc.Texture2D.MipSlice = 0;
+    
+    //Create UAV
+    DX::ThrowIfFailed(
+        device->CreateUnorderedAccessView(tempTexture.Get(), &uavDesc, &m_DepthMapUAV)
+    );
 
     CD3D11_DEFAULT d3dDefault;
     {
@@ -83,19 +130,27 @@ ShadowMap::~ShadowMap()
 
 }
 
-ID3D11ShaderResourceView* ShadowMap::GetDepthMapShaderResourceView()
+ID3D11ShaderResourceView* ShadowMap::GetDepthMapSRV()
 {
     return m_DepthMapSRV.Get();
 }
 
-void ShadowMap::BindDSVAndSetNullRenderTarget(ID3D11DeviceContext* dc)
+ID3D11UnorderedAccessView* ShadowMap::GetDepthMapUAV()
+{
+    return m_DepthMapUAV.Get();
+}
+
+void ShadowMap::BindDSVAndRTV(ID3D11DeviceContext* dc)
 {
     dc->RSSetViewports(1, &m_Viewport);
 
     // Set null render target because we are only going to draw to depth buffer.
     // Setting a null render target will disable color writes.
-    ID3D11RenderTargetView* renderTargets[1] = { 0 };
+    ID3D11RenderTargetView* renderTargets[1] = { m_DepthMapRTV.Get() };
     dc->OMSetRenderTargets(1, renderTargets, m_DepthMapDSV.Get());
+
+    const float color[4] = { 1.0f,1.0f,1.0f,1.0f };
+    dc->ClearRenderTargetView(m_DepthMapRTV.Get(), color);
 
     dc->ClearDepthStencilView(m_DepthMapDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 

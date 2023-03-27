@@ -31,14 +31,20 @@
     <Filter Include="Shaders\Deferred\GBuffers">
       <UniqueIdentifier>{991c237c-1609-44d9-89a6-d396a88e1332}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Shaders\Deferred\screenQuad">
-      <UniqueIdentifier>{3780093d-99a1-4b05-93ee-d4dd52131b45}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\Effects">
       <UniqueIdentifier>{c5044797-51d3-4323-be17-d9ed4f20a620}</UniqueIdentifier>
     </Filter>
     <Filter Include="Shaders\Deferred\LocalLights">
       <UniqueIdentifier>{d4599729-430d-449b-827b-16d949b97131}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\ShadowMap">
+      <UniqueIdentifier>{0e5e900f-b4e6-4e3d-a1f5-e53d8f0dac7c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Blur">
+      <UniqueIdentifier>{f1a1d6a6-137b-48d1-aad9-0cf7b6ed1e9c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Shaders\Deferred\ScreenQuad">
+      <UniqueIdentifier>{3780093d-99a1-4b05-93ee-d4dd52131b45}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -124,6 +130,9 @@
     <ClInclude Include="Inc\ShadowMap.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Inc\Blur.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Src\DemoBase.cpp">
@@ -195,6 +204,9 @@
     <ClCompile Include="Src\ShadowMap.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Src\Blur.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Src\Shaders\SkyPS.hlsl">
@@ -210,10 +222,10 @@
       <Filter>Shaders\Deferred\GBuffers</Filter>
     </FxCompile>
     <FxCompile Include="Src\Shaders\DeferredScreenQuadVS.hlsl">
-      <Filter>Shaders\Deferred\screenQuad</Filter>
+      <Filter>Shaders\Deferred\ScreenQuad</Filter>
     </FxCompile>
     <FxCompile Include="Src\Shaders\DeferredScreenQuadPS.hlsl">
-      <Filter>Shaders\Deferred\screenQuad</Filter>
+      <Filter>Shaders\Deferred\ScreenQuad</Filter>
     </FxCompile>
     <FxCompile Include="Src\Shaders\LocalLightVS.hlsl">
       <Filter>Shaders\Deferred\LocalLights</Filter>
@@ -222,7 +234,16 @@
       <Filter>Shaders\Deferred\LocalLights</Filter>
     </FxCompile>
     <FxCompile Include="Src\Shaders\ShadowMapVS.hlsl">
-      <Filter>Shaders</Filter>
+      <Filter>Shaders\ShadowMap</Filter>
+    </FxCompile>
+    <FxCompile Include="Src\Shaders\ShadowMapPS.hlsl">
+      <Filter>Shaders\ShadowMap</Filter>
+    </FxCompile>
+    <FxCompile Include="Src\Shaders\HorzBlurCS.hlsl">
+      <Filter>Shaders\Blur</Filter>
+    </FxCompile>
+    <FxCompile Include="Src\Shaders\VertBlurCS.hlsl">
+      <Filter>Shaders\Blur</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>
