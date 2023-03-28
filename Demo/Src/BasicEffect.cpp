@@ -42,34 +42,12 @@ void RenderGBuffersEffect::SetShadowSampler(ID3D11DeviceContext* context, ID3D11
 	context->PSSetSamplers(1, 1, &sampler);
 }
 
-void RenderGBuffersEffect::SetMaterial(const Material& mat)
+void RenderGBuffersEffect::EnableMomentShadowMap(bool flag)
 {
-	m_CbPerObjectData.Material = mat;
-}
-
-void RenderGBuffersEffect::SetDirectionalLight(const DirectionalLight& light)
-{
-	m_CbPerFrameData.DirLight = light;
-}
-
-void RenderGBuffersEffect::SetPointLight(const PointLight& light)
-{
-	m_CbPerFrameData.PointLight = light;
-}
-
-void RenderGBuffersEffect::SetSpotLight(const SpotLight& light)
-{
-	m_CbPerFrameData.SpotLight = light;
-}
-
-void RenderGBuffersEffect::SetEyePosition(DirectX::FXMVECTOR eyePos)
-{
-	XMStoreFloat3(&m_CbPerFrameData.EyePos, eyePos);
-}
-
-void RenderGBuffersEffect::SetFog(const FogProperties& fog)
-{
-	m_CbPerFrameData.Fog = fog;
+	if (flag)
+		m_CbPerFrameData.ShadowMethod = 1.0f;
+	else
+		m_CbPerFrameData.ShadowMethod = 0.0f;
 }
 
 void RenderGBuffersEffect::SetSampler(ID3D11DeviceContext* context, ID3D11SamplerState* sampler)
@@ -92,8 +70,7 @@ void RenderGBuffersEffect::Bind(ID3D11DeviceContext* context) const
 	PipelineShaderObjects::Bind(context);
 
 	context->VSSetConstantBuffers(0, 1, m_CbPerObject.GetAddressOf());
-	context->PSSetConstantBuffers(0, 1, m_CbPerObject.GetAddressOf());
-	context->PSSetConstantBuffers(1, 1, m_CbPerFrame.GetAddressOf());
+	context->PSSetConstantBuffers(0, 1, m_CbPerFrame.GetAddressOf());
 }
 
 void RenderGBuffersEffect::Apply(ID3D11DeviceContext* context)

@@ -263,7 +263,7 @@
     <ClCompile Include="Src\Vertex.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Src\Shaders\Basic\Common.hlsli" />
+    <None Include="Src\Shaders\Basic\Shadows.hlsli" />
     <None Include="Src\Shaders\Lighting.hlsli">
       <FileType>Document</FileType>
     </None>

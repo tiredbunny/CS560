@@ -38,7 +38,7 @@ DemoScene::DemoScene(const HWND& hwnd) :
 	m_DrawableSphere = std::make_unique<Drawable>();
 
 	m_SceneBounds.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	m_SceneBounds.Radius = 100.0f;
+	m_SceneBounds.Radius = 52.0f;
 	
 	//Setup DirectionalLight
 	m_DirLight.SetDirection(XMFLOAT3(1.0f, -1.0f, 0.0f));
@@ -375,13 +375,6 @@ void DemoScene::UpdateScene(DX::StepTimer timer)
 	m_DrawableSphere->WorldTransform = Helpers::XMMatrixToStorage(
 		XMMatrixTranslation(0.0f, -3.0f, 0.0f)
 	);
-
-	m_BasicEffect.SetEyePosition(m_Camera.GetPosition());
-	m_BasicEffect.SetDirectionalLight(m_DirLight);
-	m_BasicEffect.SetPointLight(m_PointLight);
-	m_BasicEffect.SetSpotLight(m_SpotLight);
-	m_BasicEffect.ApplyPerFrameConstants(m_ImmediateContext.Get());
-
 }
 
 
@@ -438,7 +431,7 @@ void DemoScene::RenderToShadowMap()
 		m_ImmediateContext->DrawIndexed(it->IndexCount, 0, 0);
 	}
 
-	//=========================== blur the rendered shadow map ======================================//
+	//=================================== blur the rendered shadow map ======================================//
 
 	ID3D11RenderTargetView* nullRTV[1] = { nullptr };
 	m_ImmediateContext->OMSetRenderTargets(1, nullRTV, nullptr);
@@ -460,7 +453,7 @@ void DemoScene::DrawScene()
 	UINT stride = sizeof(GeometricPrimitive::VertexType);
 	UINT offset = 0;
 
-	//====================================== Render to shadow map ======================================//
+	//====================================== Render to shadow map ===========================================//
 
 	m_ShadowMap->BindDSVAndRTV(m_ImmediateContext.Get());
 	m_ImmediateContext->RSSetState(m_ShadowMap->GetDepthRSS());
@@ -489,10 +482,15 @@ void DemoScene::DrawScene()
 	m_BasicEffect.Bind(m_ImmediateContext.Get());
 	m_BasicEffect.SetSampler(m_ImmediateContext.Get(), m_CommonStates->AnisotropicWrap());
 	m_BasicEffect.SetShadowTransform(XMLoadFloat4x4(&m_ShadowTransform));
-	m_BasicEffect.SetDirectionalLight(m_DirLight);
 	m_BasicEffect.SetShadowMap(m_ImmediateContext.Get(), m_ShadowMap->GetDepthMapSRV());
 	m_BasicEffect.SetShadowSampler(m_ImmediateContext.Get(), m_ShadowMap->GetShadowSampler());
 
+	static bool enableMomentShadowMap = true;
+	ImGui::Checkbox("Moment Shadow Map", &enableMomentShadowMap);
+
+	m_BasicEffect.EnableMomentShadowMap(enableMomentShadowMap);
+	m_BasicEffect.ApplyPerFrameConstants(m_ImmediateContext.Get());
+	
 	static Drawable* drawables[] = { m_DrawableGrid.get()};
 	for (auto const& it : drawables)
 	{
@@ -544,7 +542,7 @@ void DemoScene::DrawScene()
 	ImGui::DragFloat("Radius", &m_SceneBounds.Radius, 1.0f, 1.0f, 9000.0f);
 	//-----------------------------------------------------------------------------//
 
-	float blend[4] = { 1,1,1, 1};
+	float blend[4] = {1,1,1,1};
 	m_ImmediateContext->OMSetBlendState(m_CommonStates->Additive(), blend, 0xFFFFFFFF);
 	m_ImmediateContext->OMSetDepthStencilState(m_CommonStates->DepthNone(), 0);
 
@@ -574,6 +572,7 @@ void DemoScene::DrawScene()
 	m_LocalLightEffect.SetVisualizeSphere(visualizeSphere);
 	m_LocalLightEffect.SetGBuffers(m_ImmediateContext.Get(), BUFFER_COUNT, shaderResourceViewArray);
 
+	m_ImmediateContext->RSSetState(m_CommonStates->CullNone());
 	for (int i = 0; i < m_LocalLights.size(); ++i)
 	{
 		float scale = sphereRadius;
@@ -583,13 +582,15 @@ void DemoScene::DrawScene()
 			m_LocalLights[i].LightPos.z);
 
 		m_LocalLightEffect.SetWorldViewProj(world * viewProj);
-		m_LocalLightEffect.Apply(m_ImmediateContext.Get());
 		m_LocalLightEffect.SetLightData(m_LocalLights[i].LightPos, m_LocalLights[i].LightColor, range);
+
+		m_LocalLightEffect.Apply(m_ImmediateContext.Get());
 		m_LocalLightEffect.ApplyPerFrameConstants(m_ImmediateContext.Get());
 
 		m_ImmediateContext->DrawIndexed(sphereMeshIndexCount, 0, 0);
 		
 	}
+	m_ImmediateContext->RSSetState(nullptr);
 
 	//========================================== Sky/background =====================================================//
 	/*ResetStates();
@@ -614,7 +615,6 @@ void DemoScene::FillBasicEffect(Drawable* drawable)
 	m_BasicEffect.SetWorld(drawable->GetWorld());
 	m_BasicEffect.SetWorldViewProj(drawable->GetWorld() * viewProj);
 	m_BasicEffect.SetTextureTransform(XMLoadFloat4x4(&drawable->TextureTransform));
-	m_BasicEffect.SetMaterial(drawable->Material);
 	m_BasicEffect.SetTexture(m_ImmediateContext.Get(), drawable->TextureSRV.Get());
 
 	m_BasicEffect.Apply(m_ImmediateContext.Get());

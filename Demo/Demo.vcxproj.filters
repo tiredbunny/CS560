@@ -53,7 +53,7 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="packages.config" />
-    <None Include="Src\Shaders\Basic\Common.hlsli">
+    <None Include="Src\Shaders\Basic\Shadows.hlsli">
       <Filter>Shaders\Deferred\GBuffers</Filter>
     </None>
   </ItemGroup>

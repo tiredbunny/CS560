@@ -56,34 +56,27 @@ public:
 class RenderGBuffersEffect : PipelineShaderObjects
 {
 private:
-	struct VS_PS_CbPerObject
+	struct VS_CbPerObject
 	{
 		DirectX::XMFLOAT4X4 WorldViewProj;
 		DirectX::XMFLOAT4X4 World;
 		DirectX::XMFLOAT4X4 WorldInvTranspose;
 		DirectX::XMFLOAT4X4 TextureTransform;
 		DirectX::XMFLOAT4X4 ShadowTransform;
-		Material Material;
 
 	} m_CbPerObjectData;
 
 	struct PS_CbPerFrame
 	{
-		DirectionalLight DirLight;
-		PointLight PointLight;
-		SpotLight SpotLight;
-
-		DirectX::XMFLOAT3 EyePos;
-		float pad;
-
-		FogProperties Fog;
+		float ShadowMethod;
+		DirectX::XMFLOAT3 pad;
 
 	} m_CbPerFrameData;
 
 	static_assert(sizeof(PS_CbPerFrame) % 16 == 0, "struct not 16-byte aligned");
-	static_assert(sizeof(VS_PS_CbPerObject) % 16 == 0, "struct not 16-byte aligned");
+	static_assert(sizeof(VS_CbPerObject) % 16 == 0, "struct not 16-byte aligned");
 
-	ConstantBuffer<VS_PS_CbPerObject> m_CbPerObject;
+	ConstantBuffer<VS_CbPerObject> m_CbPerObject;
 	ConstantBuffer<PS_CbPerFrame> m_CbPerFrame;
 public:
 	RenderGBuffersEffect() = default;
@@ -104,14 +97,9 @@ public:
 	void SetShadowTransform(DirectX::FXMMATRIX shadowTransform);
 	void SetShadowSampler(ID3D11DeviceContext* context, ID3D11SamplerState* sampler);
 	
-	void SetMaterial(const Material& mat);
-	void Apply(ID3D11DeviceContext* context);
+	void EnableMomentShadowMap(bool flag);
 
-	void SetDirectionalLight(const DirectionalLight& light);
-	void SetPointLight(const PointLight& light);
-	void SetSpotLight(const SpotLight& light);
-	void SetEyePosition(DirectX::FXMVECTOR eyePos);
-	void SetFog(const FogProperties& fog);
+	void Apply(ID3D11DeviceContext* context);
 	void ApplyPerFrameConstants(ID3D11DeviceContext* context);
 	
 	void SetSampler(ID3D11DeviceContext* context, ID3D11SamplerState* sampler);

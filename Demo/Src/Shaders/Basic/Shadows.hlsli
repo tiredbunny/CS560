@@ -1,26 +1,3 @@
-#include "..\Lighting.hlsli"
-
-struct VertexOut
-{
-    float4 PosH : SV_POSITION;
-    float3 PosW : WORLD_POS;
-    float3 NormalW : NORMAL0;
-    float2 Tex : TEXCOORD0;
-    float4 ShadowPosH : TEXCOORD1;
-};
-
-
-cbuffer cbPerObject : register(b0)
-{
-    row_major float4x4 gWorldViewProj;
-    row_major float4x4 gWorld;
-    row_major float4x4 gWorldInverseTranspose;
-    row_major float4x4 gTextureTransform;
-    row_major float4x4 gShadowTransform;
-
-    Material gMaterial;
-};
-
 float VarianceMethod(float4 moments, float rel_pixel_depth) 
 {
     float rel_light_depth = moments.x;
@@ -50,10 +27,7 @@ float3 CholeskyDecomposition(float4 b_dash, float rel_pixel_depth)
     float z2 = rel_pixel_depth;
     float z3 = rel_pixel_depth * rel_pixel_depth;
 
-    float a = 1.0f; //sqrt(m11);
-//    if (a <= 0.0f) {
-//        a = 0.0001f;
-//    }
+    float a = 1.0f; 
 
     float b = m12 / a;
     float c = m13 / a;
@@ -88,18 +62,15 @@ float Hamburger4MSMMethod(float4 moments, float rel_pixel_depth)
     float bias = 0.0001f;
     float4 b_dash = ((1.0f - bias) * moments) + (bias * float4(0.5f, 0.5f, 0.5f, 0.5f));
 
-    // c = (c1, c2, c3)
     float3 c = CholeskyDecomposition(b_dash, rel_pixel_depth);
 
-    // in quadratic equation, a = c3, b = c2, c = c1
     float sqrt_det = sqrt((c.y * c.y) - (4.0f * c.z * c.x));
 
-    // roots = z2, z3
     float z2 = 0.0f;
     float z3 = 0.0f;
 
     z2 = (-c.y - sqrt_det) / (2.0f * c.z);
-    // z2 should always be the smaller root
+  
     if (c.z < 0.0f) 
     {
         z3 = z2;

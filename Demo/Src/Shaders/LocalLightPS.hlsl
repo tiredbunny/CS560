@@ -55,7 +55,7 @@ float4 main(VertexOut pin) : SV_TARGET
 
 	float4 totalColor = float4(finalDiffuse, 1.0f);
 
-	float gamma = 2.2f;
+	float gamma = 1.2f;
 	totalColor.r = pow(totalColor.r, 1.0f / gamma);
 	totalColor.g = pow(totalColor.g, 1.0f / gamma);
 	totalColor.b = pow(totalColor.b, 1.0f / gamma);
