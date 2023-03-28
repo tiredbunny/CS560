@@ -31,7 +31,7 @@ float4 main(VertexOut pin) : SV_TARGET
 	float lightAmountDL = saturate(dot(normal, L));
 	float3 color = lightColor * lightAmountDL * diffuse * posNshadow.w;
 
-	
+
 	/*float gamma = 2.2f;
 	color.r = pow(color.r, 1.0f / gamma);
 	color.g = pow(color.g, 1.0f / gamma);

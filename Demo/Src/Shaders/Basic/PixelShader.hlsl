@@ -14,7 +14,6 @@ cbuffer cbPerFrame : register(b1)
     FogProperties gFog;
 };
 
- 
 SamplerState Sampler : register(s0);
 SamplerComparisonState SamplerShadow : register(s1);
 
@@ -36,18 +35,38 @@ PixelShaderOutput main(VertexOut pin) : SV_TARGET
     // Complete projection by doing division by w.
     pin.ShadowPosH.xyz /= pin.ShadowPosH.w;
 
-    // Depth in NDC space.
     float depth = pin.ShadowPosH.z;
+    float4 lightDepth = ShadowMap.Sample(Sampler, pin.ShadowPosH.xy);
 
-    float lightDepth = ShadowMap.Sample(Sampler, pin.ShadowPosH.xy);
+    float fPercentLit = 1.0f - Hamburger4MSMMethod(lightDepth, depth);
+    //float  fAvgZ = lightDepth.x; // Filtered z
+    //float  fAvgZ2 = lightDepth.y; // Filtered z-squared
 
-    float shadow = lightDepth > depth ? 1.0f : 0.0f;
+    //float fPercentLit = 0.0f;
+    //if (depth <= fAvgZ) // We put the z value in w so that we can index the texture array with Z.
+    //{
+    //    fPercentLit = 1.0f;
+    //}
+    //else
+    //{
+    //    float variance = (fAvgZ2)-(fAvgZ * fAvgZ);
+    //    variance = min(1.0f, max(0.0f, variance + 0.00001f));
+
+    //    float mean = fAvgZ;
+    //    float d = depth - mean; // We put the z value in w so that we can index the texture array with Z.
+    //    float p_max = variance / (variance + d * d);
+
+    //    // To combat light-bleeding, experiment with raising p_max to some power
+    //    // (Try values from 0.1 to 100.0, if you like.)
+    //    fPercentLit = pow(p_max, 4);
+
+    //}
 
     PixelShaderOutput output;
     
     output.Normal = float4(pin.NormalW, 1.0f);
     output.Diffuse = DiffuseMap.Sample(Sampler, pin.Tex);
-    output.Position = float4(pin.PosW, shadow);
+    output.Position = float4(pin.PosW, fPercentLit);
 
 
     return output;

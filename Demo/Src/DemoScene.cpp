@@ -437,6 +437,17 @@ void DemoScene::RenderToShadowMap()
 
 		m_ImmediateContext->DrawIndexed(it->IndexCount, 0, 0);
 	}
+
+	//=========================== blur the rendered shadow map ======================================//
+
+	ID3D11RenderTargetView* nullRTV[1] = { nullptr };
+	m_ImmediateContext->OMSetRenderTargets(1, nullRTV, nullptr);
+
+	static bool blurShadowMap = true;
+	ImGui::Checkbox("Blur Shadow Map", &blurShadowMap);
+
+	if (blurShadowMap)
+		m_BlurFilter->BlurInPlace(m_ImmediateContext.Get(), m_ShadowMap->GetDepthMapSRV(), m_ShadowMap->GetDepthMapUAV());
 }
 
 
@@ -456,19 +467,6 @@ void DemoScene::DrawScene()
 
 	RenderToShadowMap();
 
-	ID3D11RenderTargetView* nullRTV[1] = { nullptr };
-
-	m_ImmediateContext->OMSetRenderTargets(1, nullRTV, nullptr);
-
-	static bool blurShadowMap = true;
-
-	ImGui::Checkbox("Blur Shadow Map", &blurShadowMap);
-
-	if (blurShadowMap)
-	{
-		m_BlurFilter->BlurInPlace(m_ImmediateContext.Get(), m_ShadowMap->GetDepthMapSRV(), m_ShadowMap->GetDepthMapUAV());
-	}
-	
 	m_ImmediateContext->RSSetState(nullptr);
 	m_ImmediateContext->OMSetBlendState(nullptr, nullptr, 0xFFFFFFFF);
 	m_ImmediateContext->OMSetDepthStencilState(nullptr, 0);
