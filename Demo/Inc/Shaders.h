@@ -130,11 +130,23 @@ class LocalLightEffect : PipelineShaderObjects
 
 	} m_CbPerFrameData;
 
+	struct PS_CbPBR
+	{
+		float metallic;
+		float roughness;
+		float ao;
+		float padding;
+
+	} m_CbPBRData;
+
+
 	static_assert(sizeof(VS_CbPerObject) % 16 == 0, "struct not 16-byte aligned");
 	static_assert(sizeof(PS_CbPerFrame) % 16 == 0, "struct not 16-byte aligned");
+	static_assert(sizeof(PS_CbPBR) % 16 == 0, "struct not 16-byte aligned");
 
 	ConstantBuffer<VS_CbPerObject> m_CbPerObject;
 	ConstantBuffer<PS_CbPerFrame> m_CbPerFrame;
+	ConstantBuffer<PS_CbPBR> m_CbPBR;
 public:
 	LocalLightEffect() = default;
 	LocalLightEffect(const LocalLightEffect&) = delete;
@@ -145,6 +157,7 @@ public:
 		Create(device, inputLayout);
 	}
 	
+	void SetPBRProperties(float metallic, float roughness, float ao);
 	void SetWorldViewProj(DirectX::FXMMATRIX worldViewProj);
 	void SetCameraPosition(DirectX::XMFLOAT3 position);
 	void SetLightData(DirectX::XMFLOAT3 lightPos, DirectX::XMFLOAT3 lightColor, float radius);

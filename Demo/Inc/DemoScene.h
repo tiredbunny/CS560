@@ -35,8 +35,6 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_RSFrontCounterCW;
 
 	DirectionalLight m_DirLight;
-	PointLight m_PointLight;
-	SpotLight m_SpotLight;
 
 	//Skybox
 	Sky m_Sky;

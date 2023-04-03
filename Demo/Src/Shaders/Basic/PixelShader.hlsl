@@ -48,7 +48,7 @@ PixelShaderOutput main(VertexOut pin) : SV_TARGET
 
     PixelShaderOutput output;
     output.Normal = float4(pin.NormalW, 1.0f);
-    output.Diffuse = DiffuseMap.Sample(Sampler, pin.Tex);
+    output.Diffuse = pow(DiffuseMap.Sample(Sampler, pin.Tex), 2.2f);
     output.Position = float4(pin.PosW, fPercentLit);
 
 

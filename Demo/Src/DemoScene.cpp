@@ -45,11 +45,7 @@ DemoScene::DemoScene(const HWND& hwnd) :
 
 	//Setup some material properties other than default
 
-	m_DrawableGrid->Material.Diffuse = XMFLOAT4(0.4f, 0.4f, 0.4f, 1.0f);
-	m_DrawableGrid->Material.Ambient = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 
-	m_DrawableSphere->Material.Diffuse = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	m_DrawableSphere->Material.Ambient = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 
 	m_Camera.SetPosition(-2.0f, 5.0f, -20.0f);
 
@@ -534,6 +530,15 @@ void DemoScene::DrawScene()
 	static float range = 10.0f;
 	static float sphereRadius = 10.0f;
 	static bool visualizeSphere = false;
+
+	static float metallic = 1.0f;
+	static float roughness = 0.5f;
+	static float ao = 1.0f;
+
+	ImGui::DragFloat("metallic", &metallic, 0.01f, 0.0f, 1.0f);
+	ImGui::DragFloat("roughness", &roughness, 0.01f, 0.0f, 1.0f);
+	ImGui::DragFloat("ao", &ao, 0.01f, 0.0f, 1.0f);
+
 	ImGui::DragFloat("Range", &range, 0.5f, 1.0f, 1000.0f);
 	ImGui::DragFloat("sphereRadius", &sphereRadius, 0.5f, 1.0f, 1000.0f);
 	ImGui::Checkbox("draw local light sphere", &visualizeSphere);
@@ -564,13 +569,14 @@ void DemoScene::DrawScene()
 
 	//Draw local lights
 	stride = sizeof(VertexPosition);
-	m_LocalLightEffect.Bind(m_ImmediateContext.Get());
-	
 	m_ImmediateContext->IASetVertexBuffers(0, 1, sphereMeshVB.GetAddressOf(), &stride, &offset);
 	m_ImmediateContext->IASetIndexBuffer(sphereMeshIB.Get(), DXGI_FORMAT_R16_UINT, 0);
+	
+	m_LocalLightEffect.Bind(m_ImmediateContext.Get());
 	m_LocalLightEffect.SetCameraPosition(m_Camera.GetPosition3f());
 	m_LocalLightEffect.SetVisualizeSphere(visualizeSphere);
 	m_LocalLightEffect.SetGBuffers(m_ImmediateContext.Get(), BUFFER_COUNT, shaderResourceViewArray);
+	m_LocalLightEffect.SetPBRProperties(metallic, roughness, ao);
 
 	m_ImmediateContext->RSSetState(m_CommonStates->CullNone());
 	for (int i = 0; i < m_LocalLights.size(); ++i)

@@ -1,156 +1,42 @@
 
-struct Material
+// ----------------------------------------------------------------------------
+float DistributionGGX(float3 N, float3 H, float roughness)
 {
-    float4 Ambient; 
-    float4 Diffuse;
-    float4 Specular;
-};
+    float a = roughness * roughness;
+    float a2 = a * a;
+    float NdotH = max(dot(N, H), 0.0);
+    float NdotH2 = NdotH * NdotH;
 
-struct DirectionalLight
-{
-    float4 Ambient;
-    float4 Diffuse;
-    float4 Specular;
-    float3 Direction;
-    float pad;
-};
+    float nom = a2;
+    float denom = (NdotH2 * (a2 - 1.0) + 1.0);
+    denom = 3.14159265359 * denom * denom;
 
-struct PointLight
-{
-    float4 Ambient;
-    float4 Diffuse;
-    float4 Specular;
-    
-    float3 Position;
-    float Range;
-    
-    float3 Attenuation;
-    float pad;
-};
-
-struct SpotLight
-{
-    float4 Ambient;
-    float4 Diffuse;
-    float4 Specular;
-    
-    float3 Direction;
-    float SpotPower;
-    
-    float3 Position;
-    float Range;
-    
-    float3 Attenuation;
-    float pad;
-};
-
-struct FogProperties
-{
-    float FogStart;
-    float FogRange;
-    float FogEnabled; //set to <= 0.0f to disable
-    float pad;
-    float4 FogColor;
-};
-
-
-typedef Material LightingOutput;
-
-LightingOutput ComputeDirectionalLight(Material mat, DirectionalLight light, float3 normal, float3 toEyeVector)
-{
-    LightingOutput result;
-    
-    float diffuseIntensity = saturate(dot(-light.Direction, normal));
-    
-    float specularIntensity = 0.0f;
-    [flatten]
-    if (diffuseIntensity > 0.0f)
-    {
-        float3 reflectVector = normalize(reflect(light.Direction, normal));
-        specularIntensity = pow(saturate(dot(reflectVector, toEyeVector)), mat.Specular.w);
-    }
-    
-    result.Ambient = mat.Ambient * light.Ambient;
-    result.Diffuse = diffuseIntensity * (mat.Diffuse * light.Diffuse);
-    result.Specular = specularIntensity * (mat.Specular * light.Specular);
-
-    return result;
+    return nom / denom;
 }
-
-
-LightingOutput ComputePointLight(Material mat, PointLight light, float3 normal, float3 pixelPos, float3 toEyeVector)
+// ----------------------------------------------------------------------------
+float GeometrySchlickGGX(float NdotV, float roughness)
 {
-    float3 surfaceToLightVec = light.Position - pixelPos;
-    float vectorLength = length(surfaceToLightVec);
-    
-    LightingOutput result;
-    
-    result.Ambient = float4(0.0f, 0.0f, 0.0f, 0.0f);
-    result.Diffuse = float4(0.0f, 0.0f, 0.0f, 0.0f);
-    result.Specular = float4(0.0f, 0.0f, 0.0f, 0.0f);
-    
-    if (vectorLength > light.Range)
-        return result;
-    
-    //normalize the vector ourselves since we already computed length
-    surfaceToLightVec /= vectorLength;
-    
-    float diffuseIntensity = saturate(dot(surfaceToLightVec, normal));
-    
-    float specularIntensity = 0.0f;
-    [flatten]
-    if (diffuseIntensity > 0.0f)
-    {
-        float3 reflectVector = reflect(-surfaceToLightVec, normal);
-        specularIntensity = pow(saturate(dot(reflectVector, toEyeVector)), mat.Specular.w);
-    }
-    
-    //attenuation equation
-    //  1 / ( a0 + a1*d + a2* d^2 )
-    float att = 1.0f / dot(light.Attenuation, float3(1.0f, vectorLength, vectorLength * vectorLength));
+    float r = (roughness + 1.0);
+    float k = (r * r) / 8.0;
 
-    result.Diffuse = diffuseIntensity * (mat.Diffuse * light.Diffuse) * att;
-    result.Specular = specularIntensity * (mat.Specular * light.Specular) * att;
-    result.Ambient = mat.Ambient * light.Ambient;
-    
-    return result;
+    float nom = NdotV;
+    float denom = NdotV * (1.0 - k) + k;
+
+    return nom / denom;
 }
-
-LightingOutput ComputeSpotLight(Material mat, SpotLight light, float3 normal, float3 pixelPos, float3 toEyeVector)
+// ----------------------------------------------------------------------------
+float GeometrySmith(float3 N, float3 V, float3 L, float roughness)
 {
-    float3 surfaceToLightVec = light.Position - pixelPos;
-    float vectorLength = length(surfaceToLightVec);
-    
-    LightingOutput result;
-    
-    result.Ambient = float4(0.0f, 0.0f, 0.0f, 0.0f);
-    result.Diffuse = float4(0.0f, 0.0f, 0.0f, 0.0f);
-    result.Specular = float4(0.0f, 0.0f, 0.0f, 0.0f);
-    
-    if (vectorLength > light.Range)
-        return result;
-    
-    //normalize the vector ourselves since we already computed length
-    surfaceToLightVec /= vectorLength;
-    
-    float diffuseIntensity = saturate((dot(surfaceToLightVec, normal)));
-    
-    float specularIntensity = 0.0f;
-    [flatten]
-    if (diffuseIntensity > 0.0f)
-    {
-        float3 reflectVector = reflect(-surfaceToLightVec, normal);
-        specularIntensity = pow(saturate(dot(reflectVector, toEyeVector)), mat.Specular.w);
-    }
-    
-    float coneSpotIntensity = pow(saturate(dot(-light.Direction, surfaceToLightVec)), light.SpotPower);
-    //attenuation equation
-    // 1 / ( a0 + a1*d + a2* d^2 )
-    float att = 1.0f / dot(light.Attenuation, float3(1.0f, vectorLength, vectorLength * vectorLength));
-    
-    result.Diffuse = diffuseIntensity * (mat.Diffuse * light.Diffuse) * att * coneSpotIntensity;
-    result.Specular = specularIntensity * (mat.Specular * light.Specular) * att * coneSpotIntensity;
-    result.Ambient = (mat.Ambient * light.Ambient) * coneSpotIntensity;
-    
-    return result;
+    float NdotV = max(dot(N, V), 0.0);
+    float NdotL = max(dot(N, L), 0.0);
+    float ggx2 = GeometrySchlickGGX(NdotV, roughness);
+    float ggx1 = GeometrySchlickGGX(NdotL, roughness);
+
+    return ggx1 * ggx2;
 }
+// ----------------------------------------------------------------------------
+float3 fresnelSchlick(float cosTheta, float3 F0)
+{
+    return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+}
+// ----------------------------------------------------------------------------

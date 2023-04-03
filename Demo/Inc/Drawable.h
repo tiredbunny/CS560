@@ -41,6 +41,5 @@ struct Drawable
 	DXGI_FORMAT IndexBufferFormat;
 	DirectX::XMFLOAT4X4 WorldTransform;
 	DirectX::XMFLOAT4X4 TextureTransform;
-	Material Material;
 };
 
