@@ -12,11 +12,14 @@ cbuffer cbPerFrame : register(b0)
 	float pad1;
 	float3 lightColor;
 	float pad2;
+	float3 cameraPosition;
+	float pad3;
 }
 
 Texture2D Normal	: register(t0);
 Texture2D Diffuse		: register(t1);
 Texture2D Position	: register(t2);
+Texture2D PBR : register(t3);
 
 float4 main(VertexOut pin) : SV_TARGET
 {
@@ -24,15 +27,56 @@ float4 main(VertexOut pin) : SV_TARGET
 
 	float3 normal = Normal.Load(sampleIndex).xyz;
 	float4 posNshadow = Position.Load(sampleIndex);
-	float3 diffuse = Diffuse.Load(sampleIndex).xyz;
+	float4 PBRData = PBR.Load(sampleIndex);
 
-	float3 L = -lightDir;
+	float metallic = PBRData.x;
+	float roughness = PBRData.y;
+	float ao = PBRData.z;
+	float gammaExposure = PBRData.w;
 
-	normal = normalize(normal);
+	float4 diff = Diffuse.Load(sampleIndex);
+	float3 diffuse = pow(diff.xyz, gammaExposure);
 
-	float lightAmountDL = saturate(dot(normal, L));
-	
-	float3 color = lightColor * lightAmountDL * diffuse * posNshadow.w;
+	if (diff.a == 0.4f)
+		return float4(diffuse, 1.0f);
+
+	float3 N = normalize(normal);
+	float3 V = normalize(cameraPosition - posNshadow.xyz);
+
+	float3 F0 = float3(0.04, 0.04, 0.04);
+	F0 = lerp(F0, diffuse, metallic);
+
+	float3 Lo = float3(0.0, 0.0f, 0.0);
+
+	// calculate per-light radiance
+	float3 L = -lightDir; 
+	float3 H = normalize(V + L);
+
+	float3 radiance = lightColor;
+
+	// Cook-Torrance BRDF
+	float NDF = DistributionGGX(N, H, roughness);
+	float G = GeometrySmith(N, V, L, roughness);
+	float3 F = fresnelSchlick(clamp(dot(H, V), 0.0, 1.0), F0);
+
+	float3 numerator = NDF * G * F;
+	float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001; 
+	float3 specular = numerator / denominator;
+
+	float3 kS = F;
+	float3 kD = float3(1.0, 1.0f, 1.0f) - kS;
+	kD *= 1.0 - metallic;
+
+	float NdotL = max(dot(N, L), 0.0);
+
+	Lo += (kD * diffuse / 3.14159265359 + specular) * radiance * NdotL;  
+
+	float3 ambient = float3(0.03, 0.03, 0.03) * diffuse * ao;
+	float3 color = ambient + Lo;
+
+	color = color / (color + float3(1.0f, 1.0f, 1.0f));
+	color = pow(color, 1.0f / gammaExposure);
+
 
 	return float4(color, 1.0f);
 }

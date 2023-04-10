@@ -43,10 +43,6 @@ DemoScene::DemoScene(const HWND& hwnd) :
 	//Setup DirectionalLight
 	m_DirLight.SetDirection(XMFLOAT3(1.0f, -1.0f, 0.0f));
 
-	//Setup some material properties other than default
-
-
-
 	m_Camera.SetPosition(-2.0f, 5.0f, -20.0f);
 
 	for (int i = 0; i < BUFFER_COUNT; i++)
@@ -83,7 +79,7 @@ DemoScene::~DemoScene()
 bool DemoScene::CreateDeviceDependentResources()
 {
 
-	m_Sky.Create(m_Device.Get(), L"Textures\\desertcube1024.dds", 3000.0f);
+	m_Sky.Create(m_Device.Get(), L"Textures\\skybox2.dds", 3000.0f);
 
 	Microsoft::WRL::ComPtr<ID3D11InputLayout> layoutPosNormalTex;
 	DX::ThrowIfFailed
@@ -151,44 +147,6 @@ bool DemoScene::CreateDeviceDependentResources()
 		if FAILED(m_Device->CreateRasterizerState(&desc, m_RSFrontCounterCW.ReleaseAndGetAddressOf()))
 			return false;
 	}
-
-	//Rasterizer setup
-	D3D11_RASTERIZER_DESC rasterizerDesc;
-	ZeroMemory(&rasterizerDesc, sizeof(rasterizerDesc));
-	rasterizerDesc.CullMode = D3D11_CULL_BACK;
-	rasterizerDesc.FillMode = D3D11_FILL_SOLID;
-	rasterizerDesc.DepthClipEnable = false;
-
-	DX::ThrowIfFailed(
-		m_Device->CreateRasterizerState(&rasterizerDesc, &rasterizer)
-	);
-
-	//Blend state setup
-	D3D11_BLEND_DESC blendDesc;
-	ZeroMemory(&blendDesc, sizeof(blendDesc));
-	blendDesc.AlphaToCoverageEnable = false;
-	blendDesc.IndependentBlendEnable = false;
-	blendDesc.RenderTarget[0].BlendEnable = true;
-	blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_ONE;
-	blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_ONE;
-	blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
-	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_ONE;
-	blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ONE;
-	blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
-	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
-
-	DX::ThrowIfFailed(
-		m_Device->CreateBlendState(&blendDesc, &blendState)
-	);
-
-	D3D11_DEPTH_STENCIL_DESC depthStencilDesc = {};
-	depthStencilDesc.DepthEnable = true;
-	depthStencilDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO;
-	depthStencilDesc.DepthFunc = D3D11_COMPARISON_LESS_EQUAL;
-
-	DX::ThrowIfFailed(
-		m_Device->CreateDepthStencilState(&depthStencilDesc, &depthState)
-	);
 #pragma endregion
 
 	CreateBuffers();
@@ -365,12 +323,7 @@ void DemoScene::UpdateScene(DX::StepTimer timer)
 
 	m_Camera.UpdateViewMatrix();
 
-
 	XMStoreFloat4x4(&m_DrawableGrid->TextureTransform, XMMatrixScaling(20.0f, 20.0f, 0.0f));
-
-	m_DrawableSphere->WorldTransform = Helpers::XMMatrixToStorage(
-		XMMatrixTranslation(0.0f, -3.0f, 0.0f)
-	);
 }
 
 
@@ -462,16 +415,24 @@ void DemoScene::DrawScene()
 
 	//====================================== Render scene in G-buffers ======================================//
 	
+	//----------- imgui junk variables -------------------//
+	static float range = 10.0f;
+	static float sphereRadius = 10.0f;
+	static bool visualizeSphere = false;
+	static float metallic = 1.0f;
+	static float roughness = 0.5f;
+	static float ao = 1.0f;
+	static float gamma = 1.0f;
+	//----------------------------------------------------//
+	
 	//
 	// Restore the back and depth buffer to the OM stage.
 	//
 	m_ImmediateContext->RSSetViewports(1, &m_ScreenViewport);
 	m_ImmediateContext->OMSetRenderTargets(BUFFER_COUNT, renderTargetViewArray, m_DepthStencilView.Get());
 
-	const float color[4] = { 0,0,0,0 };
-
 	for (int i = 0; i < BUFFER_COUNT; ++i)
-		m_ImmediateContext->ClearRenderTargetView(renderTargetViewArray[i], color);
+		m_ImmediateContext->ClearRenderTargetView(renderTargetViewArray[i], DirectX::Colors::Black);
 	
 	m_ImmediateContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 
@@ -480,17 +441,20 @@ void DemoScene::DrawScene()
 	m_BasicEffect.SetShadowTransform(XMLoadFloat4x4(&m_ShadowTransform));
 	m_BasicEffect.SetShadowMap(m_ImmediateContext.Get(), m_ShadowMap->GetDepthMapSRV());
 	m_BasicEffect.SetShadowSampler(m_ImmediateContext.Get(), m_ShadowMap->GetShadowSampler());
-
-	static bool enableMomentShadowMap = true;
-	ImGui::Checkbox("Moment Shadow Map", &enableMomentShadowMap);
-
-	m_BasicEffect.EnableMomentShadowMap(enableMomentShadowMap);
+	m_BasicEffect.EnableMomentShadowMap(true);
 	m_BasicEffect.ApplyPerFrameConstants(m_ImmediateContext.Get());
 	
+
 	static Drawable* drawables[] = { m_DrawableGrid.get()};
 	for (auto const& it : drawables)
 	{
-		FillBasicEffect(it);
+		m_BasicEffect.SetWorld(it->GetWorld());
+		m_BasicEffect.SetWorldViewProj(it->GetWorld() * viewProj);
+		m_BasicEffect.SetTextureTransform(XMLoadFloat4x4(&it->TextureTransform));
+		m_BasicEffect.SetTexture(m_ImmediateContext.Get(), it->TextureSRV.Get());
+		m_BasicEffect.SetPBRProperties(metallic, roughness, ao, gamma);
+
+		m_BasicEffect.Apply(m_ImmediateContext.Get());
 
 		m_ImmediateContext->IASetVertexBuffers(0, 1, it->VertexBuffer.GetAddressOf(), &stride, &offset);
 		m_ImmediateContext->IASetIndexBuffer(it->IndexBuffer.Get(), it->IndexBufferFormat, 0);
@@ -501,19 +465,23 @@ void DemoScene::DrawScene()
 	m_ImmediateContext->IASetVertexBuffers(0, 1, it->VertexBuffer.GetAddressOf(), &stride, &offset);
 	m_ImmediateContext->IASetIndexBuffer(it->IndexBuffer.Get(), it->IndexBufferFormat, 0);
 
+	//Draw spheres at each light position
+	m_BasicEffect.SetTexture(m_ImmediateContext.Get(), it->TextureSRV.Get());
 	for (auto const& light : m_LocalLights)
 	{
 		XMMATRIX world = XMMatrixTranslation(light.LightPos.x, light.LightPos.y - 3.0f, light.LightPos.z);
 
 		m_BasicEffect.SetWorld(world);
-		m_BasicEffect.SetWorldViewProj(world * viewProj);
-		m_BasicEffect.SetTexture(m_ImmediateContext.Get(), it->TextureSRV.Get());
+		m_BasicEffect.SetWorldViewProj(world * viewProj);	
 		m_BasicEffect.Apply(m_ImmediateContext.Get());
 
 		m_ImmediateContext->DrawIndexed(it->IndexCount, 0, 0);
 	}
 
+	m_Sky.Draw(m_ImmediateContext.Get(), m_CommonStates.get(), m_Camera.GetPosition3f(), viewProj);
+
 	//============================================ lighting pass ===================================================//
+	
 	Clear();
 	PrepareForRendering();
 
@@ -522,22 +490,16 @@ void DemoScene::DrawScene()
 
 	//------------------ imgui junk ------------------------------------------------//
 
-	//for (int i = 0; i < BUFFER_COUNT; ++i)
-	//	ImGui::Image(shaderResourceViewArray[i], ImVec2(400, 200));
+	for (int i = 0; i < BUFFER_COUNT; ++i)
+		ImGui::Image(shaderResourceViewArray[i], ImVec2(400, 200));
+	
 
 	ImGui::DragFloat3("Global light direction", reinterpret_cast<float*>(&m_DirLight.Direction), 0.05f, -1.0f, 1.0f);
-
-	static float range = 10.0f;
-	static float sphereRadius = 10.0f;
-	static bool visualizeSphere = false;
-
-	static float metallic = 1.0f;
-	static float roughness = 0.5f;
-	static float ao = 1.0f;
 
 	ImGui::DragFloat("metallic", &metallic, 0.01f, 0.0f, 1.0f);
 	ImGui::DragFloat("roughness", &roughness, 0.01f, 0.0f, 1.0f);
 	ImGui::DragFloat("ao", &ao, 0.01f, 0.0f, 1.0f);
+	ImGui::DragFloat("gamma", &gamma, 0.01f, 1.0f, 2.2f);
 
 	ImGui::DragFloat("Range", &range, 0.5f, 1.0f, 1000.0f);
 	ImGui::DragFloat("sphereRadius", &sphereRadius, 0.5f, 1.0f, 1000.0f);
@@ -560,6 +522,7 @@ void DemoScene::DrawScene()
 	m_ScreenQuadEffect.Bind(m_ImmediateContext.Get());
 	m_ScreenQuadEffect.SetGBuffers(m_ImmediateContext.Get(), BUFFER_COUNT, shaderResourceViewArray);
 	m_ScreenQuadEffect.SetGlobalLight(normalizedf, XMFLOAT3(1.0f, 1.0f, 1.0f));
+	m_ScreenQuadEffect.SetCameraPosition(m_Camera.GetPosition3f());
 	m_ScreenQuadEffect.Apply(m_ImmediateContext.Get());
 
 	stride = sizeof(ScreenQuadVertex);
@@ -576,19 +539,14 @@ void DemoScene::DrawScene()
 	m_LocalLightEffect.SetCameraPosition(m_Camera.GetPosition3f());
 	m_LocalLightEffect.SetVisualizeSphere(visualizeSphere);
 	m_LocalLightEffect.SetGBuffers(m_ImmediateContext.Get(), BUFFER_COUNT, shaderResourceViewArray);
-	m_LocalLightEffect.SetPBRProperties(metallic, roughness, ao);
 
 	m_ImmediateContext->RSSetState(m_CommonStates->CullNone());
-	for (int i = 0; i < m_LocalLights.size(); ++i)
+	for (auto const& light : m_LocalLights)
 	{
-		float scale = sphereRadius;
-		XMMATRIX world = XMMatrixScaling(scale, scale, scale) * 
-			XMMatrixTranslation(m_LocalLights[i].LightPos.x,
-			m_LocalLights[i].LightPos.y,
-			m_LocalLights[i].LightPos.z);
+		XMMATRIX world = XMMatrixScaling(sphereRadius, sphereRadius, sphereRadius) * XMMatrixTranslation(light.LightPos.x, light.LightPos.y, light.LightPos.z);
 
 		m_LocalLightEffect.SetWorldViewProj(world * viewProj);
-		m_LocalLightEffect.SetLightData(m_LocalLights[i].LightPos, m_LocalLights[i].LightColor, range);
+		m_LocalLightEffect.SetLightData(light.LightPos, light.LightColor, range);
 
 		m_LocalLightEffect.Apply(m_ImmediateContext.Get());
 		m_LocalLightEffect.ApplyPerFrameConstants(m_ImmediateContext.Get());
@@ -596,34 +554,12 @@ void DemoScene::DrawScene()
 		m_ImmediateContext->DrawIndexed(sphereMeshIndexCount, 0, 0);
 		
 	}
-	m_ImmediateContext->RSSetState(nullptr);
+	ResetStates();
 
-	//========================================== Sky/background =====================================================//
-	/*ResetStates();
-
-	m_Sky.Draw(m_ImmediateContext.Get(), m_CommonStates->LinearWrap(), m_CommonStates->CullNone(),
-		m_Camera.GetPosition3f(), viewProj, m_ClientWidth, m_ClientHeight,
-		true, XMFLOAT4(0, 0, 0, 0), XMFLOAT4(1, 1, 1, 1));*/
-
-	// The shadow might might be at any slot, so clear all slots.
+	ImGui::Image(m_ShadowMap->GetDepthMapSRV(), ImVec2(400, 200));
 	m_ImmediateContext->PSSetShaderResources(0, 16, nullSRV);
 
-	ImGui::Image(m_ShadowMap->GetDepthMapSRV(), ImVec2(300, 300));
-
-	ResetStates();
 	Present();
-}
-
-void DemoScene::FillBasicEffect(Drawable* drawable)
-{
-	XMMATRIX viewProj = m_Camera.GetView() * m_Camera.GetProj();
-
-	m_BasicEffect.SetWorld(drawable->GetWorld());
-	m_BasicEffect.SetWorldViewProj(drawable->GetWorld() * viewProj);
-	m_BasicEffect.SetTextureTransform(XMLoadFloat4x4(&drawable->TextureTransform));
-	m_BasicEffect.SetTexture(m_ImmediateContext.Get(), drawable->TextureSRV.Get());
-
-	m_BasicEffect.Apply(m_ImmediateContext.Get());
 }
 
 void DemoScene::ResetStates()

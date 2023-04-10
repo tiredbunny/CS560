@@ -71,6 +71,11 @@ private:
 		float ShadowMethod;
 		DirectX::XMFLOAT3 pad;
 
+		float metallic;
+		float roughness;
+		float ao;
+		float gammaExposure;
+
 	} m_CbPerFrameData;
 
 	static_assert(sizeof(PS_CbPerFrame) % 16 == 0, "struct not 16-byte aligned");
@@ -93,6 +98,7 @@ public:
 	void SetWorld(DirectX::FXMMATRIX world);
 	void SetWorldViewProj(DirectX::FXMMATRIX worldViewProj);
 	void SetTextureTransform(DirectX::FXMMATRIX texTransform);
+	void SetPBRProperties(float metallic, float roughness, float ao, float gammaExposure);
 
 	void SetShadowTransform(DirectX::FXMMATRIX shadowTransform);
 	void SetShadowSampler(ID3D11DeviceContext* context, ID3D11SamplerState* sampler);
@@ -130,23 +136,11 @@ class LocalLightEffect : PipelineShaderObjects
 
 	} m_CbPerFrameData;
 
-	struct PS_CbPBR
-	{
-		float metallic;
-		float roughness;
-		float ao;
-		float padding;
-
-	} m_CbPBRData;
-
-
 	static_assert(sizeof(VS_CbPerObject) % 16 == 0, "struct not 16-byte aligned");
 	static_assert(sizeof(PS_CbPerFrame) % 16 == 0, "struct not 16-byte aligned");
-	static_assert(sizeof(PS_CbPBR) % 16 == 0, "struct not 16-byte aligned");
 
 	ConstantBuffer<VS_CbPerObject> m_CbPerObject;
 	ConstantBuffer<PS_CbPerFrame> m_CbPerFrame;
-	ConstantBuffer<PS_CbPBR> m_CbPBR;
 public:
 	LocalLightEffect() = default;
 	LocalLightEffect(const LocalLightEffect&) = delete;
@@ -157,7 +151,6 @@ public:
 		Create(device, inputLayout);
 	}
 	
-	void SetPBRProperties(float metallic, float roughness, float ao);
 	void SetWorldViewProj(DirectX::FXMMATRIX worldViewProj);
 	void SetCameraPosition(DirectX::XMFLOAT3 position);
 	void SetLightData(DirectX::XMFLOAT3 lightPos, DirectX::XMFLOAT3 lightColor, float radius);
@@ -178,6 +171,8 @@ class ScreenQuadEffect : PipelineShaderObjects
 		float pad1;
 		DirectX::XMFLOAT3 LightColor;
 		float pad2;
+		DirectX::XMFLOAT3 CameraPosition;
+		float pad3;
 	} m_CbPerFrameData;
 
 	static_assert(sizeof(PS_CbPerFrame) % 16 == 0, "struct not 16-byte aligned");
@@ -195,6 +190,7 @@ public:
 
 	void Create(ID3D11Device* device, const	Microsoft::WRL::ComPtr<ID3D11InputLayout>& inputLayout);
 	void SetGBuffers(ID3D11DeviceContext* context, int bufferCount, ID3D11ShaderResourceView** srv);
+	void SetCameraPosition(DirectX::XMFLOAT3 camPos);
 	void SetGlobalLight(DirectX::XMFLOAT3 lightDir, DirectX::XMFLOAT3 lightColor);
 
 	void Apply(ID3D11DeviceContext* context);
@@ -208,21 +204,9 @@ class SkyEffect : PipelineShaderObjects
 		DirectX::XMFLOAT4X4 WorldViewProj;
 	} m_CbConstantsData;
 
-	struct PS_CbPerFrame
-	{
-		DirectX::XMFLOAT2 ScreenResolution;
-		DirectX::XMFLOAT2 padding;
-
-		DirectX::XMFLOAT4 ColorA;
-		DirectX::XMFLOAT4 ColorB;
-
-	} m_CbPerFrameData;
 
 	static_assert(sizeof(VS_CbPerObject) % 16 == 0, "struct not 16-byte aligned");
-	static_assert(sizeof(PS_CbPerFrame) % 16 == 0, "struct not 16-byte aligned");
-
 	ConstantBuffer<VS_CbPerObject> m_CbPerObject;
-	ConstantBuffer<PS_CbPerFrame> m_CbPerFrame;
 public:
 	SkyEffect() = default;
 	SkyEffect(const SkyEffect&) = delete;
@@ -238,11 +222,6 @@ public:
 	void SetWorldViewProj(DirectX::FXMMATRIX worldViewProj);
 	void SetTextureCube(ID3D11DeviceContext* context, ID3D11ShaderResourceView* srv);
 	void SetSamplerState(ID3D11DeviceContext* context, ID3D11SamplerState* state);
-
-	void SetSkyBoxEnabled(bool enabled);
-	void SetScreenResolution(DirectX::XMFLOAT2 screenRes);
-	void SetGradientColors(DirectX::XMFLOAT4 ColorA, DirectX::XMFLOAT4 ColorB);
-
 
 	void Apply(ID3D11DeviceContext* context);
 	void Bind(ID3D11DeviceContext* context) const;

@@ -17,30 +17,33 @@ cbuffer LightData : register(b0)
 	float radius;
 }
 
-cbuffer PBRMaterial : register(b1)
-{
-	float metallic;
-	float roughness;
-	float ao;
-	float pad;
-}
-
 Texture2D Normal	: register(t0);
 Texture2D Diffuse		: register(t1);
 Texture2D Position	: register(t2);
+Texture2D PBR : register(t3);
 
 float4 main(VertexOut pin) : SV_TARGET
 {
+	return float4(0, 0, 0, 1.0f);
+
 	int3 sampleIndex = int3(pin.PixelCoordinates.xy, 0);
 	 
 	float3 normal = Normal.Load(sampleIndex).xyz;
 	float3 position = Position.Load(sampleIndex).xyz;
-	float3 diffuse = Diffuse.Load(sampleIndex).xyz;
+	float4 PBRData = PBR.Load(sampleIndex);
+
+	float metallic = PBRData.x;
+	float roughness = PBRData.y;
+	float ao = PBRData.z;
+	float gammaExposure = PBRData.w;
+
+	float3 diffuse = pow(Diffuse.Load(sampleIndex).xyz, gammaExposure);
+	float objectID = Diffuse.Load(sampleIndex).w;
 
 	float3 L = lightPosition - position;
 	float dist = length(L);
 
-	if (dist > radius)
+	if (dist > radius || objectID == 0.4f)
 	{
 		return float4(0.0f, 0.0f, 0.0f, 0.0f);
 	}
@@ -95,10 +98,9 @@ float4 main(VertexOut pin) : SV_TARGET
 	float3 ambient = float3(0.03, 0.03, 0.03) * diffuse * ao;
 	float3 color = ambient + Lo;
 
-    // HDR tonemapping
-    color = color / (color + float3(1.0f, 1.0f, 1.0f));
-    // gamma correct
-	//color = pow(color, 1.0f / 1.4);
+	color = color / (color + float3(1.0f, 1.0f, 1.0f));
+	color = pow(color, 1.0f / gammaExposure);
+
 
 
 	return float4(color, 1.0f);

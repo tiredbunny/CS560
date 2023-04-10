@@ -15,7 +15,7 @@
 
 struct Drawable;
 
-auto constexpr BUFFER_COUNT = 3;
+auto constexpr BUFFER_COUNT = 4;
 
 struct LocalLight
 {
@@ -39,26 +39,22 @@ private:
 	//Skybox
 	Sky m_Sky;
 	
-
 	//deferred shading stuff
 	ID3D11RenderTargetView* renderTargetViewArray[BUFFER_COUNT];
 	ID3D11ShaderResourceView* shaderResourceViewArray[BUFFER_COUNT];
 	Microsoft::WRL::ComPtr<ID3D11Buffer> screenQuadVB;
 	Microsoft::WRL::ComPtr<ID3D11Buffer> screenQuadIB;
 
-	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> depthState;
-	Microsoft::WRL::ComPtr<ID3D11RasterizerState> rasterizer;
-	Microsoft::WRL::ComPtr<ID3D11BlendState> blendState;
-
 	RenderGBuffersEffect m_BasicEffect;
 	ScreenQuadEffect m_ScreenQuadEffect;
 	LocalLightEffect m_LocalLightEffect;
 
+	std::vector<LocalLight> m_LocalLights;
+
+	//Sphere mesh
 	Microsoft::WRL::ComPtr<ID3D11Buffer> sphereMeshVB;
 	Microsoft::WRL::ComPtr<ID3D11Buffer> sphereMeshIB;
 	UINT sphereMeshIndexCount;
-
-	std::vector<LocalLight> m_LocalLights;
 
 	//Shadows stuff
 	std::unique_ptr<ShadowMap> m_ShadowMap;
@@ -101,8 +97,7 @@ private:
 	void CreateDeferredBuffers();
 	void PrepareForRendering();
 	void ResetStates();
-	void FillBasicEffect(Drawable* drawable);
-	
+
 	void ComputeShadowTransform();
 	void RenderToShadowMap();
 };

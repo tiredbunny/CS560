@@ -20,6 +20,10 @@ void ScreenQuadEffect::SetGBuffers(ID3D11DeviceContext* context, int bufferCount
 {
 	context->PSSetShaderResources(0, bufferCount, srv);
 }
+void ScreenQuadEffect::SetCameraPosition(DirectX::XMFLOAT3 camPos)
+{
+	m_CbPerFrameData.CameraPosition = camPos;
+}
 void ScreenQuadEffect::SetGlobalLight(DirectX::XMFLOAT3 lightDir, DirectX::XMFLOAT3 lightColor)
 {
 	m_CbPerFrameData.LightColor = lightColor;

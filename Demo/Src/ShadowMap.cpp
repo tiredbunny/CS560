@@ -12,7 +12,6 @@ ShadowMap::ShadowMap(ID3D11Device* device, UINT width, UINT height)
     m_Viewport.MinDepth = 0.0f;
     m_Viewport.MaxDepth = 1.0f;
 
-
     //================================ create depth buffer and depth stencil view ==================================//
     
     // Use typeless format because the DSV is going to interpret
@@ -27,7 +26,7 @@ ShadowMap::ShadowMap(ID3D11Device* device, UINT width, UINT height)
     texDesc.SampleDesc.Count = 1;
     texDesc.SampleDesc.Quality = 0;
     texDesc.Usage = D3D11_USAGE_DEFAULT;
-    texDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL; /*| D3D11_BIND_SHADER_RESOURCE;*/
+    texDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL; 
     texDesc.CPUAccessFlags = 0;
     texDesc.MiscFlags = 0;
 
@@ -41,13 +40,6 @@ ShadowMap::ShadowMap(ID3D11Device* device, UINT width, UINT height)
     dsvDesc.Texture2D.MipSlice = 0;
     DX::ThrowIfFailed(device->CreateDepthStencilView(depthMap.Get(), &dsvDesc, &m_DepthMapDSV));
 
- /*   D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc;
-    srvDesc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-    srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-    srvDesc.Texture2D.MipLevels = texDesc.MipLevels;
-    srvDesc.Texture2D.MostDetailedMip = 0;
-    DX::ThrowIfFailed(device->CreateShaderResourceView(depthMap.Get(), &srvDesc, &m_SingleChannelDepthMapSRV));*/
-
 
     //=============================== create frame buffer and render target view ====================================//
 
@@ -57,7 +49,6 @@ ShadowMap::ShadowMap(ID3D11Device* device, UINT width, UINT height)
     DX::ThrowIfFailed(
         device->CreateTexture2D(&texDesc, NULL, &tempTexture)
     );
-
 
     D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc32 = {};
     renderTargetViewDesc32.Format = texDesc.Format;
@@ -153,6 +144,5 @@ void ShadowMap::BindDSVAndRTV(ID3D11DeviceContext* dc)
     dc->ClearRenderTargetView(m_DepthMapRTV.Get(), color);
 
     dc->ClearDepthStencilView(m_DepthMapDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
-
 
 }

@@ -32,6 +32,14 @@ void RenderGBuffersEffect::SetTextureTransform(DirectX::FXMMATRIX texTransform)
 	m_CbPerObjectData.TextureTransform = Helpers::XMMatrixToStorage(texTransform);
 }
 
+void RenderGBuffersEffect::SetPBRProperties(float metallic, float roughness, float ao, float gammaExposure)
+{
+	m_CbPerFrameData.metallic = metallic;
+	m_CbPerFrameData.roughness = roughness;
+	m_CbPerFrameData.ao = ao;
+	m_CbPerFrameData.gammaExposure = gammaExposure;
+}
+
 void RenderGBuffersEffect::SetShadowTransform(DirectX::FXMMATRIX transform)
 {
 	m_CbPerObjectData.ShadowTransform = Helpers::XMMatrixToStorage(transform);

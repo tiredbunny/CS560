@@ -63,11 +63,7 @@ void Sky::Create(ID3D11Device* device, const std::wstring& cubemapFilename, floa
 	}
 }
 
-void Sky::Draw(ID3D11DeviceContext* context, ID3D11SamplerState* sampler, ID3D11RasterizerState* NoCull,
-	XMFLOAT3 eyePos,
-	FXMMATRIX viewProj, UINT screenWidth,
-	UINT screenHeight, bool useSkybox,
-	DirectX::XMFLOAT4 ColorA, DirectX::XMFLOAT4 ColorB)
+void Sky::Draw(ID3D11DeviceContext* context, DirectX::CommonStates* commonStates, XMFLOAT3 eyePos, FXMMATRIX viewProj)
 {
 	UINT stride = sizeof(SkyVertex);
 	UINT offset = 0;
@@ -77,16 +73,12 @@ void Sky::Draw(ID3D11DeviceContext* context, ID3D11SamplerState* sampler, ID3D11
 
 	m_SkyEffect.SetWorldViewProj(WVP);
 	m_SkyEffect.SetTextureCube(context, m_TextureCubeSRV.Get());
-	m_SkyEffect.SetSamplerState(context, sampler);
-	m_SkyEffect.SetScreenResolution(XMFLOAT2((float)screenWidth, (float)screenHeight));
-	m_SkyEffect.SetSkyBoxEnabled(useSkybox);
-
-	m_SkyEffect.SetGradientColors(ColorA, ColorB);
+	m_SkyEffect.SetSamplerState(context, commonStates->LinearWrap());
 
 	m_SkyEffect.Bind(context);
 	m_SkyEffect.Apply(context);
 
-	context->RSSetState(NoCull);
+	context->RSSetState(commonStates->CullNone());
 	context->OMSetDepthStencilState(m_LessEqualDSS.Get(), 0);
 
 	context->IASetVertexBuffers(0, 1, m_VertexBuffer.GetAddressOf(), &stride, &offset);

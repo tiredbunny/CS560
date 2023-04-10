@@ -9,6 +9,7 @@
 
 #include "Shaders.h"
 #include <string>
+#include "CommonStates.h"
 
 class Sky
 {
@@ -21,11 +22,7 @@ public:
 
 
 	void Create(ID3D11Device* device, const std::wstring& cubemapFilename, float skySphereRadius);
-
-	void Draw(ID3D11DeviceContext* context, ID3D11SamplerState* sampler, ID3D11RasterizerState* NoCull,
-		DirectX::XMFLOAT3 eyePos,
-		DirectX::FXMMATRIX viewProj, UINT screenWidth, UINT screenHeight,
-		bool useSkybox, DirectX::XMFLOAT4 ColorA, DirectX::XMFLOAT4 ColorB);
+	void Draw(ID3D11DeviceContext* context, DirectX::CommonStates* commonStates, DirectX::XMFLOAT3 eyePos, DirectX::FXMMATRIX viewProj);
 private:
 	Microsoft::WRL::ComPtr<ID3D11Buffer> m_VertexBuffer;
 	Microsoft::WRL::ComPtr<ID3D11Buffer> m_IndexBuffer;

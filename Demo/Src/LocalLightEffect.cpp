@@ -10,12 +10,6 @@ namespace
 
 using namespace DirectX;
 
-void LocalLightEffect::SetPBRProperties(float metallic, float roughness, float ao)
-{
-	m_CbPBRData.metallic = metallic;
-	m_CbPBRData.roughness = roughness;
-	m_CbPBRData.ao = ao;
-}
 
 void LocalLightEffect::SetWorldViewProj(DirectX::FXMMATRIX worldViewProj)
 {
@@ -53,13 +47,11 @@ void LocalLightEffect::Create(ID3D11Device* device, const Microsoft::WRL::ComPtr
 		g_LocalLightPS, sizeof(g_LocalLightPS));
 	m_CbPerFrame.Create(device);
 	m_CbPerObject.Create(device);
-	m_CbPBR.Create(device);
 }
 
 void LocalLightEffect::Apply(ID3D11DeviceContext* context)
 {
 	m_CbPerObject.SetData(context, m_CbPerObjectData);
-	m_CbPBR.SetData(context, m_CbPBRData);
 }
 
 void LocalLightEffect::ApplyPerFrameConstants(ID3D11DeviceContext* context)
@@ -73,6 +65,6 @@ void LocalLightEffect::Bind(ID3D11DeviceContext* context) const
 
 	context->VSSetConstantBuffers(0, 1, m_CbPerObject.GetAddressOf());
 
-	ID3D11Buffer* bufs[] = { m_CbPerFrame.Get(), m_CbPBR.Get() };
-	context->PSSetConstantBuffers(0, 2, bufs);
+	ID3D11Buffer* bufs[] = { m_CbPerFrame.Get() };
+	context->PSSetConstantBuffers(0, 1, bufs);
 }

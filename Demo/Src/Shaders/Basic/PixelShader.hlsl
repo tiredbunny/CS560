@@ -5,7 +5,13 @@ cbuffer cbPerFrame : register(b0)
 {
     float ShadowMethod;
     float3 pad;
+
+    float metallic;
+    float roughness;
+    float ao;
+    float gammaExposure;
 };
+
 
 SamplerState Sampler : register(s0);
 SamplerComparisonState SamplerShadow : register(s1);
@@ -27,6 +33,7 @@ struct PixelShaderOutput
     float4 Normal				: SV_Target0;			
     float4 Diffuse				: SV_Target1;			
     float4 Position				: SV_Target2;
+    float4 PBRData              : SV_Target3;
 };
 
 PixelShaderOutput main(VertexOut pin) : SV_TARGET
@@ -48,9 +55,9 @@ PixelShaderOutput main(VertexOut pin) : SV_TARGET
 
     PixelShaderOutput output;
     output.Normal = float4(pin.NormalW, 1.0f);
-    output.Diffuse = pow(DiffuseMap.Sample(Sampler, pin.Tex), 2.2f);
+    output.Diffuse = DiffuseMap.Sample(Sampler, pin.Tex);
     output.Position = float4(pin.PosW, fPercentLit);
-
+    output.PBRData = float4(metallic, roughness, ao, gammaExposure);
 
     return output;
 }
