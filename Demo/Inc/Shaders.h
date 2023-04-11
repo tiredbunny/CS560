@@ -190,6 +190,10 @@ public:
 
 	void Create(ID3D11Device* device, const	Microsoft::WRL::ComPtr<ID3D11InputLayout>& inputLayout);
 	void SetGBuffers(ID3D11DeviceContext* context, int bufferCount, ID3D11ShaderResourceView** srv);
+
+	void SetIRMap(ID3D11DeviceContext* context, ID3D11ShaderResourceView* srv);
+	void SetSampler(ID3D11DeviceContext* context, ID3D11SamplerState* sampler);
+
 	void SetCameraPosition(DirectX::XMFLOAT3 camPos);
 	void SetGlobalLight(DirectX::XMFLOAT3 lightDir, DirectX::XMFLOAT3 lightColor);
 

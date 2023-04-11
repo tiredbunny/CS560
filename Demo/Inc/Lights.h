@@ -2,6 +2,15 @@
 
 #include <DirectXMath.h>
 
+struct PBRMaterial
+{
+	PBRMaterial() : Metallic(0.0f), Roughness(0.5f), Ao(1.0f) {}
+
+	float Metallic;
+	float Roughness;
+	float Ao;
+};
+
 struct DirectionalLight
 {
 	DirectX::XMFLOAT3 Direction;

@@ -1,6 +1,6 @@
 #include "pch.h"
 #include "Shaders.h"
-
+#include "DemoScene.h"
 namespace
 {
 #include "Shaders\Compiled\DeferredScreenQuadPS.h"
@@ -19,6 +19,14 @@ void ScreenQuadEffect::Create(ID3D11Device* device, const Microsoft::WRL::ComPtr
 void ScreenQuadEffect::SetGBuffers(ID3D11DeviceContext* context, int bufferCount, ID3D11ShaderResourceView** srv)
 {
 	context->PSSetShaderResources(0, bufferCount, srv);
+}
+void ScreenQuadEffect::SetIRMap(ID3D11DeviceContext* context, ID3D11ShaderResourceView* srv)
+{
+	context->PSSetShaderResources(BUFFER_COUNT, 1, &srv);
+}
+void ScreenQuadEffect::SetSampler(ID3D11DeviceContext* context, ID3D11SamplerState* sampler)
+{
+	context->PSSetSamplers(0, 1, &sampler);
 }
 void ScreenQuadEffect::SetCameraPosition(DirectX::XMFLOAT3 camPos)
 {

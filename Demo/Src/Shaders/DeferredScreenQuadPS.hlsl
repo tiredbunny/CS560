@@ -21,6 +21,9 @@ Texture2D Diffuse		: register(t1);
 Texture2D Position	: register(t2);
 Texture2D PBR : register(t3);
 
+TextureCube IRMap : register(t4);
+SamplerState Sampler : register(s0);
+
 float4 main(VertexOut pin) : SV_TARGET
 {
 	int3 sampleIndex = int3(pin.screenSpace.xy, 0);
@@ -35,16 +38,16 @@ float4 main(VertexOut pin) : SV_TARGET
 	float gammaExposure = PBRData.w;
 
 	float4 diff = Diffuse.Load(sampleIndex);
-	float3 diffuse = pow(diff.xyz, gammaExposure);
+	float3 albedo = pow(diff.xyz, gammaExposure);
 
 	if (diff.a == 0.4f)
-		return float4(diffuse, 1.0f);
+		return float4(albedo, 1.0f);
 
 	float3 N = normalize(normal);
 	float3 V = normalize(cameraPosition - posNshadow.xyz);
 
 	float3 F0 = float3(0.04, 0.04, 0.04);
-	F0 = lerp(F0, diffuse, metallic);
+	F0 = lerp(F0, albedo, metallic);
 
 	float3 Lo = float3(0.0, 0.0f, 0.0);
 
@@ -63,20 +66,22 @@ float4 main(VertexOut pin) : SV_TARGET
 	float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001; 
 	float3 specular = numerator / denominator;
 
-	float3 kS = F;
+
+	float3 kS = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
 	float3 kD = float3(1.0, 1.0f, 1.0f) - kS;
 	kD *= 1.0 - metallic;
+	float3 irradiance = IRMap.Sample(Sampler, N).rgb;
+	float3 diffuse = irradiance * albedo;
 
 	float NdotL = max(dot(N, L), 0.0);
 
 	Lo += (kD * diffuse / 3.14159265359 + specular) * radiance * NdotL;  
 
-	float3 ambient = float3(0.03, 0.03, 0.03) * diffuse * ao;
+	float3 ambient = (kD * diffuse + specular) * ao; 
 	float3 color = ambient + Lo;
 
 	color = color / (color + float3(1.0f, 1.0f, 1.0f));
 	color = pow(color, 1.0f / gammaExposure);
-
 
 	return float4(color, 1.0f);
 }

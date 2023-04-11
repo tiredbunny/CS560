@@ -51,10 +51,16 @@ DemoScene::DemoScene(const HWND& hwnd) :
 		shaderResourceViewArray[i] = nullptr;
 	}
 
+	PBRMaterial mat;
+
 	for (int i = 0; i < 10; ++i)
 	{
+		mat.Metallic = i / 9.0f;
+
 		for (int j = 0; j < 10; ++j)
 		{
+			mat.Roughness = j / 9.0f;
+
 			LocalLight light = {};
 
 			light.LightPos = XMFLOAT3((i * 10) - 50.0f, 4.0f, (j * 10.0f) - 40.0f);
@@ -62,6 +68,7 @@ DemoScene::DemoScene(const HWND& hwnd) :
 			light.range = MathHelper::RandF(10.0f, 40.0f);
 
 			m_LocalLights.push_back(light);
+			m_Materials.push_back(mat);
 		}
 
 	}
@@ -80,6 +87,10 @@ bool DemoScene::CreateDeviceDependentResources()
 {
 
 	m_Sky.Create(m_Device.Get(), L"Textures\\skybox2.dds", 3000.0f);
+
+	DX::ThrowIfFailed(
+		CreateDDSTextureFromFile(m_Device.Get(), m_ImmediateContext.Get(), L"Textures\\skybox2IR.dds", 0, m_IRCubeSRV.ReleaseAndGetAddressOf())
+	);
 
 	Microsoft::WRL::ComPtr<ID3D11InputLayout> layoutPosNormalTex;
 	DX::ThrowIfFailed
@@ -309,17 +320,19 @@ void DemoScene::UpdateScene(DX::StepTimer timer)
 	m_Camera.SetLens(XMConvertToRadians(60.0f), static_cast<float>(m_ClientWidth) / m_ClientHeight, 1.0f, 1000.0f);
 	
 
+	static float cameraSpeed = 40.0f;
+
 	if (GetAsyncKeyState('W') & 0x8000)
-		m_Camera.Walk(10.0f * dt);
+		m_Camera.Walk(cameraSpeed * dt);
 
 	if (GetAsyncKeyState('S') & 0x8000)
-		m_Camera.Walk(-10.0f * dt);
+		m_Camera.Walk(-cameraSpeed * dt);
 
 	if (GetAsyncKeyState('A') & 0x8000)
-		m_Camera.Strafe(-10.0f * dt);
+		m_Camera.Strafe(-cameraSpeed * dt);
 
 	if (GetAsyncKeyState('D') & 0x8000)
-		m_Camera.Strafe(10.0f * dt);
+		m_Camera.Strafe(cameraSpeed * dt);
 
 	m_Camera.UpdateViewMatrix();
 
@@ -419,7 +432,7 @@ void DemoScene::DrawScene()
 	static float range = 10.0f;
 	static float sphereRadius = 10.0f;
 	static bool visualizeSphere = false;
-	static float metallic = 1.0f;
+	static float metallic = 0.0f;
 	static float roughness = 0.5f;
 	static float ao = 1.0f;
 	static float gamma = 1.0f;
@@ -442,8 +455,9 @@ void DemoScene::DrawScene()
 	m_BasicEffect.SetShadowMap(m_ImmediateContext.Get(), m_ShadowMap->GetDepthMapSRV());
 	m_BasicEffect.SetShadowSampler(m_ImmediateContext.Get(), m_ShadowMap->GetShadowSampler());
 	m_BasicEffect.EnableMomentShadowMap(true);
-	m_BasicEffect.ApplyPerFrameConstants(m_ImmediateContext.Get());
 	
+	m_BasicEffect.SetPBRProperties(metallic, roughness, ao, gamma);
+	m_BasicEffect.ApplyPerFrameConstants(m_ImmediateContext.Get());
 
 	static Drawable* drawables[] = { m_DrawableGrid.get()};
 	for (auto const& it : drawables)
@@ -452,7 +466,6 @@ void DemoScene::DrawScene()
 		m_BasicEffect.SetWorldViewProj(it->GetWorld() * viewProj);
 		m_BasicEffect.SetTextureTransform(XMLoadFloat4x4(&it->TextureTransform));
 		m_BasicEffect.SetTexture(m_ImmediateContext.Get(), it->TextureSRV.Get());
-		m_BasicEffect.SetPBRProperties(metallic, roughness, ao, gamma);
 
 		m_BasicEffect.Apply(m_ImmediateContext.Get());
 
@@ -467,13 +480,16 @@ void DemoScene::DrawScene()
 
 	//Draw spheres at each light position
 	m_BasicEffect.SetTexture(m_ImmediateContext.Get(), it->TextureSRV.Get());
-	for (auto const& light : m_LocalLights)
+	for (int i = 0; i < m_LocalLights.size(); ++i)
 	{
-		XMMATRIX world = XMMatrixTranslation(light.LightPos.x, light.LightPos.y - 3.0f, light.LightPos.z);
-
+		XMMATRIX world = XMMatrixTranslation(m_LocalLights[i].LightPos.x, m_LocalLights[i].LightPos.y - 3.0f, m_LocalLights[i].LightPos.z);
+		auto const& mat = m_Materials[i];
+		
+		m_BasicEffect.SetPBRProperties(mat.Metallic, mat.Roughness, mat.Ao, gamma);
 		m_BasicEffect.SetWorld(world);
 		m_BasicEffect.SetWorldViewProj(world * viewProj);	
 		m_BasicEffect.Apply(m_ImmediateContext.Get());
+		m_BasicEffect.ApplyPerFrameConstants(m_ImmediateContext.Get());
 
 		m_ImmediateContext->DrawIndexed(it->IndexCount, 0, 0);
 	}
@@ -521,6 +537,8 @@ void DemoScene::DrawScene()
 	//Draw full-screen quad
 	m_ScreenQuadEffect.Bind(m_ImmediateContext.Get());
 	m_ScreenQuadEffect.SetGBuffers(m_ImmediateContext.Get(), BUFFER_COUNT, shaderResourceViewArray);
+	m_ScreenQuadEffect.SetIRMap(m_ImmediateContext.Get(), m_IRCubeSRV.Get());
+	m_ScreenQuadEffect.SetSampler(m_ImmediateContext.Get(), m_CommonStates->LinearWrap());
 	m_ScreenQuadEffect.SetGlobalLight(normalizedf, XMFLOAT3(1.0f, 1.0f, 1.0f));
 	m_ScreenQuadEffect.SetCameraPosition(m_Camera.GetPosition3f());
 	m_ScreenQuadEffect.Apply(m_ImmediateContext.Get());

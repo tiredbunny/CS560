@@ -38,7 +38,8 @@ private:
 
 	//Skybox
 	Sky m_Sky;
-	
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_IRCubeSRV;
+
 	//deferred shading stuff
 	ID3D11RenderTargetView* renderTargetViewArray[BUFFER_COUNT];
 	ID3D11ShaderResourceView* shaderResourceViewArray[BUFFER_COUNT];
@@ -50,7 +51,7 @@ private:
 	LocalLightEffect m_LocalLightEffect;
 
 	std::vector<LocalLight> m_LocalLights;
-
+	std::vector<PBRMaterial> m_Materials;
 	//Sphere mesh
 	Microsoft::WRL::ComPtr<ID3D11Buffer> sphereMeshVB;
 	Microsoft::WRL::ComPtr<ID3D11Buffer> sphereMeshIB;
