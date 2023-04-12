@@ -20,13 +20,34 @@ void ScreenQuadEffect::SetGBuffers(ID3D11DeviceContext* context, int bufferCount
 {
 	context->PSSetShaderResources(0, bufferCount, srv);
 }
-void ScreenQuadEffect::SetIRMap(ID3D11DeviceContext* context, ID3D11ShaderResourceView* srv)
+void ScreenQuadEffect::SetScreenResolution(float width, float height)
 {
-	context->PSSetShaderResources(BUFFER_COUNT, 1, &srv);
+	m_CbPerFrameData.width = width;
+	m_CbPerFrameData.height = height;
 }
+void ScreenQuadEffect::SetIRMapAndEnvMap(ID3D11DeviceContext* context, ID3D11ShaderResourceView* IRMap, ID3D11ShaderResourceView* EnvMap)
+{
+	ID3D11ShaderResourceView* maps[] = { IRMap, EnvMap };
+
+	context->PSSetShaderResources(BUFFER_COUNT, 2, maps);
+}
+
+
 void ScreenQuadEffect::SetSampler(ID3D11DeviceContext* context, ID3D11SamplerState* sampler)
 {
 	context->PSSetSamplers(0, 1, &sampler);
+}
+void ScreenQuadEffect::SetHammersleyData(HammerseleyData data)
+{
+	m_CbPerFrameData.N = data.N;
+
+	for (int i = 0; i < 192; ++i)
+		m_CbPerFrameData.hammersley[i] = 0;
+
+	for (int i = 0; i < data.values.size(); ++i)
+	{
+		m_CbPerFrameData.hammersley[i] = data.values[i];
+	}
 }
 void ScreenQuadEffect::SetCameraPosition(DirectX::XMFLOAT3 camPos)
 {

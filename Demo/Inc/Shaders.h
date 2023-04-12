@@ -163,6 +163,8 @@ public:
 	void Bind(ID3D11DeviceContext* context) const;
 };
 
+class HammerseleyData;
+
 class ScreenQuadEffect : PipelineShaderObjects
 {
 	struct PS_CbPerFrame
@@ -173,6 +175,13 @@ class ScreenQuadEffect : PipelineShaderObjects
 		float pad2;
 		DirectX::XMFLOAT3 CameraPosition;
 		float pad3;
+
+		float hammersley[2 * 96];
+		float N;
+		float width;
+		float height;
+		float pad4;
+
 	} m_CbPerFrameData;
 
 	static_assert(sizeof(PS_CbPerFrame) % 16 == 0, "struct not 16-byte aligned");
@@ -191,9 +200,11 @@ public:
 	void Create(ID3D11Device* device, const	Microsoft::WRL::ComPtr<ID3D11InputLayout>& inputLayout);
 	void SetGBuffers(ID3D11DeviceContext* context, int bufferCount, ID3D11ShaderResourceView** srv);
 
-	void SetIRMap(ID3D11DeviceContext* context, ID3D11ShaderResourceView* srv);
+	void SetScreenResolution(float width, float height);
+	void SetIRMapAndEnvMap(ID3D11DeviceContext* context, ID3D11ShaderResourceView* IRMap, ID3D11ShaderResourceView* EnvMap);
 	void SetSampler(ID3D11DeviceContext* context, ID3D11SamplerState* sampler);
 
+	void SetHammersleyData(HammerseleyData data);
 	void SetCameraPosition(DirectX::XMFLOAT3 camPos);
 	void SetGlobalLight(DirectX::XMFLOAT3 lightDir, DirectX::XMFLOAT3 lightColor);
 

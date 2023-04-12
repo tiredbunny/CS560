@@ -24,6 +24,12 @@ struct LocalLight
 	float range;
 };
 
+struct HammerseleyData
+{
+	float N;
+	std::vector<float> values;
+};
+
 class DemoScene : public DemoBase
 {
 private:
@@ -36,9 +42,10 @@ private:
 
 	DirectionalLight m_DirLight;
 
-	//Skybox
+	//Skybox / IBL stuff
 	Sky m_Sky;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_IRCubeSRV;
+	HammerseleyData m_HammersleyData;
 
 	//deferred shading stuff
 	ID3D11RenderTargetView* renderTargetViewArray[BUFFER_COUNT];
@@ -98,7 +105,8 @@ private:
 	void CreateDeferredBuffers();
 	void PrepareForRendering();
 	void ResetStates();
-
+	
+	void HammersleyBlockSetup();
 	void ComputeShadowTransform();
 	void RenderToShadowMap();
 };

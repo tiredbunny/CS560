@@ -72,6 +72,8 @@ DemoScene::DemoScene(const HWND& hwnd) :
 		}
 
 	}
+
+	HammersleyBlockSetup();
 }
 
 DemoScene::~DemoScene()
@@ -86,10 +88,10 @@ DemoScene::~DemoScene()
 bool DemoScene::CreateDeviceDependentResources()
 {
 
-	m_Sky.Create(m_Device.Get(), L"Textures\\skybox2.dds", 3000.0f);
+	m_Sky.Create(m_Device.Get(), L"Textures\\skybox1.dds", 3000.0f);
 
 	DX::ThrowIfFailed(
-		CreateDDSTextureFromFile(m_Device.Get(), m_ImmediateContext.Get(), L"Textures\\skybox2IR.dds", 0, m_IRCubeSRV.ReleaseAndGetAddressOf())
+		CreateDDSTextureFromFile(m_Device.Get(), m_ImmediateContext.Get(), L"Textures\\skybox1IR.dds", 0, m_IRCubeSRV.ReleaseAndGetAddressOf())
 	);
 
 	Microsoft::WRL::ComPtr<ID3D11InputLayout> layoutPosNormalTex;
@@ -537,10 +539,12 @@ void DemoScene::DrawScene()
 	//Draw full-screen quad
 	m_ScreenQuadEffect.Bind(m_ImmediateContext.Get());
 	m_ScreenQuadEffect.SetGBuffers(m_ImmediateContext.Get(), BUFFER_COUNT, shaderResourceViewArray);
-	m_ScreenQuadEffect.SetIRMap(m_ImmediateContext.Get(), m_IRCubeSRV.Get());
+	m_ScreenQuadEffect.SetIRMapAndEnvMap(m_ImmediateContext.Get(), m_IRCubeSRV.Get(), m_Sky.GetCubeMap());
 	m_ScreenQuadEffect.SetSampler(m_ImmediateContext.Get(), m_CommonStates->LinearWrap());
 	m_ScreenQuadEffect.SetGlobalLight(normalizedf, XMFLOAT3(1.0f, 1.0f, 1.0f));
 	m_ScreenQuadEffect.SetCameraPosition(m_Camera.GetPosition3f());
+	m_ScreenQuadEffect.SetHammersleyData(m_HammersleyData);
+	m_ScreenQuadEffect.SetScreenResolution(m_ClientWidth, m_ClientHeight);
 	m_ScreenQuadEffect.Apply(m_ImmediateContext.Get());
 
 	stride = sizeof(ScreenQuadVertex);
@@ -587,6 +591,29 @@ void DemoScene::ResetStates()
 	m_ImmediateContext->OMSetDepthStencilState(nullptr, 0);
 }
 
+
+void DemoScene::HammersleyBlockSetup()
+{
+	m_HammersleyData.N = 40; // N=20 ... 40 or whatever
+	m_HammersleyData.values.resize(m_HammersleyData.N * 2);
+	//m_HammersleyData.values = new float[m_HammersleyData.N * 2];
+
+	int kk;
+	int pos = 0;
+	for (int k = 0; k < m_HammersleyData.N; k++) {
+		kk = k;
+		float u = 0.0f;
+		for (float p = 0.5f; kk; p *= 0.5f, kk >>= 1)
+		{
+			if (kk & 1)
+				u += p;
+		}
+		float v = (k + 0.5) / m_HammersleyData.N;
+		m_HammersleyData.values[pos++] = u;
+		m_HammersleyData.values[pos++] = v;
+	}
+
+}
 
 void DemoScene::ComputeShadowTransform()
 {

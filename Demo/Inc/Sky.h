@@ -20,6 +20,7 @@ public:
 	~Sky() = default;
 	Sky() = default;
 
+	ID3D11ShaderResourceView* GetCubeMap() const { return m_TextureCubeSRV.Get(); }
 
 	void Create(ID3D11Device* device, const std::wstring& cubemapFilename, float skySphereRadius);
 	void Draw(ID3D11DeviceContext* context, DirectX::CommonStates* commonStates, DirectX::XMFLOAT3 eyePos, DirectX::FXMMATRIX viewProj);
