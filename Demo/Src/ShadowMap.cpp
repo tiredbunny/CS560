@@ -93,7 +93,7 @@ ShadowMap::ShadowMap(ID3D11Device* device, UINT width, UINT height)
 
         DX::ThrowIfFailed
         (
-            device->CreateRasterizerState(&desc, m_DepthRSS.ReleaseAndGetAddressOf())
+            device->CreateRasterizerState(&desc, m_DepthRS.ReleaseAndGetAddressOf())
         );
     }
     {
@@ -135,13 +135,10 @@ void ShadowMap::BindDSVAndRTV(ID3D11DeviceContext* dc)
 {
     dc->RSSetViewports(1, &m_Viewport);
 
-    // Set null render target because we are only going to draw to depth buffer.
-    // Setting a null render target will disable color writes.
     ID3D11RenderTargetView* renderTargets[1] = { m_DepthMapRTV.Get() };
     dc->OMSetRenderTargets(1, renderTargets, m_DepthMapDSV.Get());
 
-    const float color[4] = { 1.0f,1.0f,1.0f,1.0f };
-    dc->ClearRenderTargetView(m_DepthMapRTV.Get(), color);
+    dc->ClearRenderTargetView(m_DepthMapRTV.Get(), DirectX::Colors::White);
 
     dc->ClearDepthStencilView(m_DepthMapDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 

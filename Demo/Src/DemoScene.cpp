@@ -53,17 +53,17 @@ DemoScene::DemoScene(const HWND& hwnd) :
 
 	PBRMaterial mat;
 
-	for (int i = 0; i < 10; ++i)
+	for (int i = 0; i < 5; ++i)
 	{
-		mat.Metallic = i / 9.0f;
+		mat.Metallic = 1.0f - (i / 4.0f);
 
-		for (int j = 0; j < 10; ++j)
+		for (int j = 0; j < 5; ++j)
 		{
-			mat.Roughness = j / 9.0f;
+			mat.Roughness = 1.0f - (j / 4.0f);
 
 			LocalLight light = {};
 
-			light.LightPos = XMFLOAT3((i * 10) - 50.0f, 4.0f, (j * 10.0f) - 40.0f);
+			light.LightPos = XMFLOAT3((i * 5), (j * 5.0f) + 7.0f, 4.0f);
 			light.LightColor = XMFLOAT3(MathHelper::RandF(), MathHelper::RandF(), MathHelper::RandF());
 			light.range = MathHelper::RandF(10.0f, 40.0f);
 
@@ -72,7 +72,7 @@ DemoScene::DemoScene(const HWND& hwnd) :
 		}
 
 	}
-
+	
 	HammersleyBlockSetup();
 }
 
@@ -239,19 +239,20 @@ void DemoScene::CreateBuffers()
 	Helpers::CreateGrid(vertices, indices, 100, 100);
 	m_DrawableGrid->Create(m_Device.Get(), vertices, indices);
 
-	GeometricPrimitive::CreateSphere(vertices, indices, 2.0f, 16, false);
-	m_DrawableSphere->Create(m_Device.Get(), vertices, indices);
+	GeometricPrimitive::CreateTeapot(vertices, indices, 2.0f, 16, false);
+
 
 	std::vector<VertexPosition> sphereVertices;
 	for (auto const& vertex : vertices)
 	{
 		sphereVertices.push_back(vertex.position);
 	}
-
 	sphereMeshIndexCount = indices.size();
-
 	Helpers::CreateMeshBuffer(m_Device.Get(), sphereVertices, D3D11_BIND_VERTEX_BUFFER, &sphereMeshVB);
 	Helpers::CreateMeshBuffer(m_Device.Get(), indices, D3D11_BIND_INDEX_BUFFER, &sphereMeshIB);
+
+	GeometricPrimitive::CreateSphere(vertices, indices, 5.0f, 16, false);
+	m_DrawableSphere->Create(m_Device.Get(), vertices, indices);
 
 	ScreenQuadVertex screenQuadVertices[] =
 	{
@@ -420,7 +421,7 @@ void DemoScene::DrawScene()
 	//====================================== Render to shadow map ===========================================//
 
 	m_ShadowMap->BindDSVAndRTV(m_ImmediateContext.Get());
-	m_ImmediateContext->RSSetState(m_ShadowMap->GetDepthRSS());
+	m_ImmediateContext->RSSetState(m_ShadowMap->GetDepthRS());
 
 	RenderToShadowMap();
 
@@ -433,11 +434,10 @@ void DemoScene::DrawScene()
 	//----------- imgui junk variables -------------------//
 	static float range = 10.0f;
 	static float sphereRadius = 10.0f;
-	static bool visualizeSphere = false;
 	static float metallic = 0.0f;
 	static float roughness = 0.5f;
 	static float ao = 1.0f;
-	static float gamma = 1.0f;
+	static float gamma = 2.2f;
 	//----------------------------------------------------//
 	
 	//
@@ -521,7 +521,6 @@ void DemoScene::DrawScene()
 
 	ImGui::DragFloat("Range", &range, 0.5f, 1.0f, 1000.0f);
 	ImGui::DragFloat("sphereRadius", &sphereRadius, 0.5f, 1.0f, 1000.0f);
-	ImGui::Checkbox("draw local light sphere", &visualizeSphere);
 
 	ImGui::DragFloat3("Center##1", reinterpret_cast<float*>(&m_SceneBounds.Center), 1.0f, -1000.0f, 1000.0f);
 	ImGui::DragFloat("Radius", &m_SceneBounds.Radius, 1.0f, 1.0f, 9000.0f);
@@ -536,7 +535,7 @@ void DemoScene::DrawScene()
 	XMFLOAT3 normalizedf;
 	XMStoreFloat3(&normalizedf, normalized);
 
-	//Draw full-screen quad
+	//--------------------- Draw full-screen quad -----------------------------------//
 	m_ScreenQuadEffect.Bind(m_ImmediateContext.Get());
 	m_ScreenQuadEffect.SetGBuffers(m_ImmediateContext.Get(), BUFFER_COUNT, shaderResourceViewArray);
 	m_ScreenQuadEffect.SetIRMapAndEnvMap(m_ImmediateContext.Get(), m_IRCubeSRV.Get(), m_Sky.GetCubeMap());
@@ -552,14 +551,13 @@ void DemoScene::DrawScene()
 	m_ImmediateContext->IASetIndexBuffer(screenQuadIB.Get(), DXGI_FORMAT_R16_UINT, 0);
 	m_ImmediateContext->DrawIndexed(6, 0, 0);
 
-	//Draw local lights
+	//----------------------- Draw local lights --------------------------------------//
 	stride = sizeof(VertexPosition);
 	m_ImmediateContext->IASetVertexBuffers(0, 1, sphereMeshVB.GetAddressOf(), &stride, &offset);
 	m_ImmediateContext->IASetIndexBuffer(sphereMeshIB.Get(), DXGI_FORMAT_R16_UINT, 0);
 	
 	m_LocalLightEffect.Bind(m_ImmediateContext.Get());
 	m_LocalLightEffect.SetCameraPosition(m_Camera.GetPosition3f());
-	m_LocalLightEffect.SetVisualizeSphere(visualizeSphere);
 	m_LocalLightEffect.SetGBuffers(m_ImmediateContext.Get(), BUFFER_COUNT, shaderResourceViewArray);
 
 	m_ImmediateContext->RSSetState(m_CommonStates->CullNone());
@@ -577,8 +575,9 @@ void DemoScene::DrawScene()
 		
 	}
 	ResetStates();
+	//---------------------------------------------------------------------------------//
 
-	ImGui::Image(m_ShadowMap->GetDepthMapSRV(), ImVec2(400, 200));
+	//ImGui::Image(m_ShadowMap->GetDepthMapSRV(), ImVec2(400, 200));
 	m_ImmediateContext->PSSetShaderResources(0, 16, nullSRV);
 
 	Present();
@@ -594,13 +593,13 @@ void DemoScene::ResetStates()
 
 void DemoScene::HammersleyBlockSetup()
 {
-	m_HammersleyData.N = 40; // N=20 ... 40 or whatever
+	m_HammersleyData.N = 40; 
 	m_HammersleyData.values.resize(m_HammersleyData.N * 2);
-	//m_HammersleyData.values = new float[m_HammersleyData.N * 2];
 
 	int kk;
 	int pos = 0;
-	for (int k = 0; k < m_HammersleyData.N; k++) {
+	for (int k = 0; k < m_HammersleyData.N; k++) 
+	{
 		kk = k;
 		float u = 0.0f;
 		for (float p = 0.5f; kk; p *= 0.5f, kk >>= 1)

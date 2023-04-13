@@ -176,12 +176,12 @@ class ScreenQuadEffect : PipelineShaderObjects
 		DirectX::XMFLOAT3 CameraPosition;
 		float pad3;
 
-		float hammersley[2 * 96];
-		float N;
 		float width;
 		float height;
+		float N;
 		float pad4;
 
+		float hammersley[2 * 96];
 	} m_CbPerFrameData;
 
 	static_assert(sizeof(PS_CbPerFrame) % 16 == 0, "struct not 16-byte aligned");

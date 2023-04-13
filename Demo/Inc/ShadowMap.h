@@ -15,7 +15,7 @@ public:
 	ID3D11UnorderedAccessView* GetDepthMapUAV();
 
 	ID3D11SamplerState* GetShadowSampler() const { return m_SamplerShadow.Get(); }
-	ID3D11RasterizerState* GetDepthRSS() const { return m_DepthRSS.Get(); }
+	ID3D11RasterizerState* GetDepthRS() const { return m_DepthRS.Get(); }
 
 	void BindDSVAndRTV(ID3D11DeviceContext* context);
 private:
@@ -28,7 +28,7 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> m_DepthMapRTV;
 	Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView> m_DepthMapUAV;
 
-	Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_DepthRSS;
+	Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_DepthRS;
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> m_SamplerShadow;
 	D3D11_VIEWPORT m_Viewport;
 };
