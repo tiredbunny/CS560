@@ -179,7 +179,7 @@ class ScreenQuadEffect : PipelineShaderObjects
 		float width;
 		float height;
 		float N;
-		float pad4;
+		float useAO;
 
 		float hammersley[2 * 96];
 	} m_CbPerFrameData;
@@ -202,14 +202,112 @@ public:
 
 	void SetScreenResolution(float width, float height);
 	void SetIRMapAndEnvMap(ID3D11DeviceContext* context, ID3D11ShaderResourceView* IRMap, ID3D11ShaderResourceView* EnvMap);
+	void SetAOMap(ID3D11DeviceContext* context, ID3D11ShaderResourceView* srv);
 	void SetSampler(ID3D11DeviceContext* context, ID3D11SamplerState* sampler);
-
+	void EnableAmbientOcclusion(bool enabled);
 	void SetHammersleyData(HammerseleyData data);
 	void SetCameraPosition(DirectX::XMFLOAT3 camPos);
 	void SetGlobalLight(DirectX::XMFLOAT3 lightDir, DirectX::XMFLOAT3 lightColor);
 
 	void Apply(ID3D11DeviceContext* context);
 	void Bind(ID3D11DeviceContext* context) const;
+};
+
+class AOScreenQuadEffect : PipelineShaderObjects
+{
+	//cbuffer cbPerFrame : register(b0)
+	//{
+	//	float3 eyePos;
+	//	float s;
+
+	//	float width;
+	//	float height;
+	//	float k;
+	//	float R;
+	//}
+	struct PS_CbPerFrame
+	{
+		DirectX::XMFLOAT3 eyePos;
+		float s = 1.0f;
+
+		float width;
+		float height;
+		float k = 1.0f;
+		float R = 0.5f;
+	} m_CbPerFrameData;
+
+	static_assert(sizeof(PS_CbPerFrame) % 16 == 0, "struct not 16-byte aligned");
+	ConstantBuffer<PS_CbPerFrame> m_CbPerFrame;
+public:
+	AOScreenQuadEffect() = default;
+	AOScreenQuadEffect(const AOScreenQuadEffect&) = delete;
+	AOScreenQuadEffect& operator=(const AOScreenQuadEffect&) = delete;
+
+	AOScreenQuadEffect(ID3D11Device* device, const Microsoft::WRL::ComPtr<ID3D11InputLayout>& inputLayout)
+	{
+		Create(device, inputLayout);
+	}
+
+	void Create(ID3D11Device* device, const	Microsoft::WRL::ComPtr<ID3D11InputLayout>& inputLayout);
+	void SetGBuffers(ID3D11DeviceContext* context, int bufferCount, ID3D11ShaderResourceView** srv);
+	void SetSampler(ID3D11DeviceContext* context, ID3D11SamplerState* sampler);
+	void SetAOData(float s, float k, float R);
+	void SetScreenResolution(float width, float height);
+	void SetCameraPosition(DirectX::XMFLOAT3 camPos);
+
+	void Apply(ID3D11DeviceContext* context);
+	void Bind(ID3D11DeviceContext* context) const;
+};
+
+class AOBlurEffect : PipelineShaderObjects
+{
+	/*cbuffer cbPerFrame : register(b0)
+	{
+		float4 gBlurWeights[3];
+
+		float gHorizontalBlur;
+		float width;
+		float height;
+		float pad;
+	}*/
+	struct PS_CbPerFrame
+	{
+		DirectX::XMFLOAT4 BlurWeights[3];
+
+		float HorizontalBlur; // > 0 = true
+		float width;
+		float height;
+		float preserveEdge;
+
+		DirectX::XMMATRIX Proj;
+	} m_CbPerFrameData;
+
+	static_assert(sizeof(PS_CbPerFrame) % 16 == 0, "struct not 16-byte aligned");
+	ConstantBuffer<PS_CbPerFrame> m_CbPerFrame;
+
+	std::vector<float> m_BlurWeights;
+public:
+	AOBlurEffect() = default;
+	AOBlurEffect(const AOBlurEffect&) = delete;
+	AOBlurEffect& operator=(const AOBlurEffect&) = delete;
+
+	AOBlurEffect(ID3D11Device* device, const Microsoft::WRL::ComPtr<ID3D11InputLayout>& inputLayout)
+	{
+		Create(device, inputLayout);
+	}
+	void Create(ID3D11Device* device, const	Microsoft::WRL::ComPtr<ID3D11InputLayout>& inputLayout);
+	void SetGBuffers(ID3D11DeviceContext* context, int bufferCount, ID3D11ShaderResourceView** srv);
+	void SetInputMap(ID3D11DeviceContext* context, ID3D11ShaderResourceView* srv);
+	void SetBlurWeights(float sigma);
+	void SetHorizontalBlur(bool isHorizontal);
+	void SetScreenResolution(float width, float height);
+	void SetProjMatrix(DirectX::CXMMATRIX proj);
+	void SetBlurEdgePreserve(bool isEdgePreserving);
+
+	void Apply(ID3D11DeviceContext* context);
+	void Bind(ID3D11DeviceContext* context) const;
+
+	void CalculateBlurWeights(float sigma);
 };
 
 class SkyEffect : PipelineShaderObjects

@@ -36,7 +36,7 @@ struct PixelShaderOutput
     float4 PBRData              : SV_Target3;
 };
 
-PixelShaderOutput main(VertexOut pin) : SV_TARGET
+PixelShaderOutput main(VertexOut pin)
 {
     pin.NormalW = normalize(pin.NormalW);
     
@@ -54,7 +54,7 @@ PixelShaderOutput main(VertexOut pin) : SV_TARGET
         fPercentLit = VarianceMethod(lightDepth, depth);
 
     PixelShaderOutput output;
-    output.Normal = float4(pin.NormalW, 1.0f);
+    output.Normal = float4(pin.NormalW, pin.PosH.z);
     output.Diffuse = DiffuseMap.Sample(Sampler, pin.Tex);
     output.Position = float4(pin.PosW, fPercentLit);
     output.PBRData = float4(metallic, roughness, ao, gammaExposure);

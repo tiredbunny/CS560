@@ -35,7 +35,7 @@ DemoScene::DemoScene(const HWND& hwnd) :
 	Super(hwnd)
 {
 	m_DrawableGrid = std::make_unique<Drawable>();
-	m_DrawableSphere = std::make_unique<Drawable>();
+	m_DrawableTetrahedron = std::make_unique<Drawable>();
 
 	m_SceneBounds.Center = XMFLOAT3(0.0f, 0.0f, 0.0f);
 	m_SceneBounds.Radius = 52.0f;
@@ -47,25 +47,25 @@ DemoScene::DemoScene(const HWND& hwnd) :
 
 	for (int i = 0; i < BUFFER_COUNT; i++)
 	{
-		renderTargetViewArray[i] = nullptr;
-		shaderResourceViewArray[i] = nullptr;
+		m_DeferredRTV[i] = nullptr;
+		m_DeferredSRV[i] = nullptr;
 	}
 
 	PBRMaterial mat;
 
-	for (int i = 0; i < 5; ++i)
+	for (int i = 0; i < 10; ++i)
 	{
-		mat.Metallic = 1.0f - (i / 4.0f);
+		mat.Metallic = 0;
 
-		for (int j = 0; j < 5; ++j)
+		for (int j = 0; j < 10; ++j)
 		{
-			mat.Roughness = 1.0f - (j / 4.0f);
+			mat.Roughness = 1;
 
 			LocalLight light = {};
 
-			light.LightPos = XMFLOAT3((i * 5), (j * 5.0f) + 7.0f, 4.0f);
+			light.LightPos = XMFLOAT3((i * 10) - 50.0f, 4.0f, (j * 10) - 40.0f);
 			light.LightColor = XMFLOAT3(MathHelper::RandF(), MathHelper::RandF(), MathHelper::RandF());
-			light.range = MathHelper::RandF(10.0f, 40.0f);
+			light.Range = MathHelper::RandF(10.0f, 40.0f);
 
 			m_LocalLights.push_back(light);
 			m_Materials.push_back(mat);
@@ -80,8 +80,8 @@ DemoScene::~DemoScene()
 {
 	for (int i = 0; i < BUFFER_COUNT; i++)
 	{
-		renderTargetViewArray[i]->Release();
-		shaderResourceViewArray[i]->Release();
+		m_DeferredRTV[i]->Release();
+		m_DeferredSRV[i]->Release();
 	}
 }
 
@@ -114,7 +114,8 @@ bool DemoScene::CreateDeviceDependentResources()
 			layoutPosTex.ReleaseAndGetAddressOf())
 	);
 	m_ScreenQuadEffect.Create(m_Device.Get(), layoutPosTex);
-
+	m_AOScreenQuadEffect.Create(m_Device.Get(), layoutPosTex);
+	m_AOBlurEffect.Create(m_Device.Get(), layoutPosTex);
 
 	Microsoft::WRL::ComPtr<ID3D11InputLayout> layoutPos;
 	DX::ThrowIfFailed
@@ -142,12 +143,12 @@ bool DemoScene::CreateDeviceDependentResources()
 	m_CommonStates = std::make_unique<CommonStates>(m_Device.Get());
 
 	m_BlurFilter = std::make_unique<BlurFilter>(m_Device.Get(), m_ShadowMapSize, m_ShadowMapSize, DXGI_FORMAT_R32G32B32A32_FLOAT);
-
+	
 #pragma region Load Textures
 	if FAILED(CreateDDSTextureFromFile(m_Device.Get(), m_ImmediateContext.Get(), L"Textures\\floor.dds", 0, m_DrawableGrid->TextureSRV.ReleaseAndGetAddressOf()))
 		return false;
 
-	if FAILED(CreateWICTextureFromFile(m_Device.Get(), m_ImmediateContext.Get(), L"Textures\\metal.jpg", 0, m_DrawableSphere->TextureSRV.ReleaseAndGetAddressOf()))
+	if FAILED(CreateWICTextureFromFile(m_Device.Get(), m_ImmediateContext.Get(), L"Textures\\metal.jpg", 0, m_DrawableTetrahedron->TextureSRV.ReleaseAndGetAddressOf()))
 		return false;
 #pragma endregion
 
@@ -162,9 +163,11 @@ bool DemoScene::CreateDeviceDependentResources()
 	}
 #pragma endregion
 
-	CreateBuffers();
+	CreateGeometryBuffers();
 
 	CreateDeferredBuffers();
+
+	CreateAmbientOcclusionBuffer();
 
 	return true;
 }
@@ -177,7 +180,7 @@ void DemoScene::CreateDeferredBuffers()
 	textureDesc.Height = m_ClientHeight;
 	textureDesc.MipLevels = 1;
 	textureDesc.ArraySize = 1;
-	textureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+	textureDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	textureDesc.SampleDesc.Count = 1;
 	textureDesc.SampleDesc.Quality = 0;
 	textureDesc.Usage = D3D11_USAGE_DEFAULT;
@@ -186,52 +189,101 @@ void DemoScene::CreateDeferredBuffers()
 	textureDesc.MiscFlags = 0;
 
 	
-	ID3D11Texture2D* renderTargetTextureArray[BUFFER_COUNT] = {};
+	std::vector<Microsoft::WRL::ComPtr<ID3D11Texture2D>> texArray(BUFFER_COUNT);
 
 	for (int i = 0; i < BUFFER_COUNT; i++)
 	{
 		DX::ThrowIfFailed(
-			m_Device->CreateTexture2D(&textureDesc, NULL, &renderTargetTextureArray[i])
+			m_Device->CreateTexture2D(&textureDesc, NULL, &texArray[i])
 			);
 	}
 
-	D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc32 = {};
-	renderTargetViewDesc32.Format = textureDesc.Format;
-	renderTargetViewDesc32.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-	renderTargetViewDesc32.Texture2D.MipSlice = 0;
+	D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc = {};
+	renderTargetViewDesc.Format = textureDesc.Format;
+	renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+	renderTargetViewDesc.Texture2D.MipSlice = 0;
 
 
 	for (int i = 0; i < BUFFER_COUNT; ++i)
 	{
 		//Create Render target view
 		DX::ThrowIfFailed(
-			m_Device->CreateRenderTargetView(renderTargetTextureArray[i], &renderTargetViewDesc32, &renderTargetViewArray[i])
+			m_Device->CreateRenderTargetView(texArray[i].Get(), &renderTargetViewDesc, &m_DeferredRTV[i])
 		);
 	}
 	
-	//Shader Resource View Description
 	D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc = {};
 	shaderResourceViewDesc.Format = textureDesc.Format;
 	shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
 	shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
 	shaderResourceViewDesc.Texture2D.MipLevels = 1;
 
-	for (int i = 0; i < BUFFER_COUNT; i++)
+	for (int i = 0; i < BUFFER_COUNT; ++i)
 	{
 		DX::ThrowIfFailed(
-			m_Device->CreateShaderResourceView(renderTargetTextureArray[i], &shaderResourceViewDesc, &shaderResourceViewArray[i])
+			m_Device->CreateShaderResourceView(texArray[i].Get(), &shaderResourceViewDesc, &m_DeferredSRV[i])
 		);
-	}
-
-	//Release render target texture array
-	for (int i = 0; i < BUFFER_COUNT; i++)
-	{
-		renderTargetTextureArray[i]->Release();
 	}
 
 }
 
-void DemoScene::CreateBuffers()
+void DemoScene::CreateAmbientOcclusionBuffer()
+{
+
+	m_AOMapRTV.resize(NUM_AO_MAPS);
+	m_AOMapSRV.resize(NUM_AO_MAPS);
+
+	D3D11_TEXTURE2D_DESC textureDesc = {};
+
+	textureDesc.Width = m_ClientWidth;
+	textureDesc.Height = m_ClientHeight;
+	textureDesc.MipLevels = 1;
+	textureDesc.ArraySize = 1;
+	textureDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	textureDesc.SampleDesc.Count = 1;
+	textureDesc.SampleDesc.Quality = 0;
+	textureDesc.Usage = D3D11_USAGE_DEFAULT;
+	textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+	textureDesc.CPUAccessFlags = 0;
+	textureDesc.MiscFlags = 0;
+
+	std::vector<Microsoft::WRL::ComPtr<ID3D11Texture2D>> texture(NUM_AO_MAPS);
+
+	for (int i = 0; i < NUM_AO_MAPS; ++i)
+	{
+		DX::ThrowIfFailed(
+			m_Device->CreateTexture2D(&textureDesc, NULL, &texture[i])
+		);
+	}
+
+	D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc = {};
+	renderTargetViewDesc.Format = textureDesc.Format;
+	renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+	renderTargetViewDesc.Texture2D.MipSlice = 0;
+
+	for (int i = 0; i < NUM_AO_MAPS; ++i)
+	{
+		DX::ThrowIfFailed(
+			m_Device->CreateRenderTargetView(texture[i].Get(), &renderTargetViewDesc, &m_AOMapRTV[i])
+		);
+
+	}
+
+	D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc = {};
+	shaderResourceViewDesc.Format = textureDesc.Format;
+	shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+	shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
+	shaderResourceViewDesc.Texture2D.MipLevels = 1;
+
+	for (int i = 0; i < NUM_AO_MAPS; ++i)
+	{
+		DX::ThrowIfFailed(
+			m_Device->CreateShaderResourceView(texture[i].Get(), &shaderResourceViewDesc, &m_AOMapSRV[i])
+		);
+	}
+}
+
+void DemoScene::CreateGeometryBuffers()
 {
 	std::vector<GeometricPrimitive::VertexType> vertices;
 	std::vector<uint16_t> indices;
@@ -239,20 +291,19 @@ void DemoScene::CreateBuffers()
 	Helpers::CreateGrid(vertices, indices, 100, 100);
 	m_DrawableGrid->Create(m_Device.Get(), vertices, indices);
 
-	GeometricPrimitive::CreateTeapot(vertices, indices, 2.0f, 16, false);
-
 
 	std::vector<VertexPosition> sphereVertices;
 	for (auto const& vertex : vertices)
 	{
 		sphereVertices.push_back(vertex.position);
 	}
-	sphereMeshIndexCount = indices.size();
-	Helpers::CreateMeshBuffer(m_Device.Get(), sphereVertices, D3D11_BIND_VERTEX_BUFFER, &sphereMeshVB);
-	Helpers::CreateMeshBuffer(m_Device.Get(), indices, D3D11_BIND_INDEX_BUFFER, &sphereMeshIB);
+	m_SphereMeshIndexCount = indices.size();
+	Helpers::CreateMeshBuffer(m_Device.Get(), sphereVertices, D3D11_BIND_VERTEX_BUFFER, &m_SphereMeshVB);
+	Helpers::CreateMeshBuffer(m_Device.Get(), indices, D3D11_BIND_INDEX_BUFFER, &m_SphereMeshIB);
 
-	GeometricPrimitive::CreateSphere(vertices, indices, 5.0f, 16, false);
-	m_DrawableSphere->Create(m_Device.Get(), vertices, indices);
+
+	GeometricPrimitive::CreateTetrahedron(vertices, indices, 6.0f, false);
+	m_DrawableTetrahedron->Create(m_Device.Get(), vertices, indices);
 
 	ScreenQuadVertex screenQuadVertices[] =
 	{
@@ -268,8 +319,8 @@ void DemoScene::CreateBuffers()
 		0, 2, 3
 	};
 
-	Helpers::CreateMeshBuffer(m_Device.Get(), screenQuadVertices, sizeof(screenQuadVertices) / sizeof(screenQuadVertices[0]), D3D11_BIND_VERTEX_BUFFER, screenQuadVB.ReleaseAndGetAddressOf());
-	Helpers::CreateMeshBuffer(m_Device.Get(), screenQuadIndices, sizeof(screenQuadIndices) / sizeof(screenQuadIndices[0]), D3D11_BIND_INDEX_BUFFER, screenQuadIB.ReleaseAndGetAddressOf());
+	Helpers::CreateMeshBuffer(m_Device.Get(), screenQuadVertices, sizeof(screenQuadVertices) / sizeof(screenQuadVertices[0]), D3D11_BIND_VERTEX_BUFFER, m_ScreenQuadVB.ReleaseAndGetAddressOf());
+	Helpers::CreateMeshBuffer(m_Device.Get(), screenQuadIndices, sizeof(screenQuadIndices) / sizeof(screenQuadIndices[0]), D3D11_BIND_INDEX_BUFFER, m_ScreenQuadIB.ReleaseAndGetAddressOf());
 }
 
 bool DemoScene::Initialize()
@@ -346,7 +397,6 @@ void DemoScene::UpdateScene(DX::StepTimer timer)
 void DemoScene::Clear()
 {
 	static XMVECTOR backBufferColor = DirectX::Colors::Black;
-
 	m_ImmediateContext->ClearRenderTargetView(m_RenderTargetView.Get(), reinterpret_cast<float*>(&backBufferColor));
 	m_ImmediateContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 }
@@ -356,7 +406,6 @@ void DemoScene::PrepareForRendering()
 	m_ImmediateContext->OMSetRenderTargets(1, m_RenderTargetView.GetAddressOf(), m_DepthStencilView.Get());
 	m_ImmediateContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
-
 
 void DemoScene::RenderToShadowMap()
 {
@@ -382,7 +431,7 @@ void DemoScene::RenderToShadowMap()
 		m_ImmediateContext->DrawIndexed(it->IndexCount, 0, 0);
 	}
 
-	auto it = m_DrawableSphere.get();
+	auto it = m_DrawableTetrahedron.get();
 	m_ImmediateContext->IASetVertexBuffers(0, 1, it->VertexBuffer.GetAddressOf(), &stride, &offset);
 	m_ImmediateContext->IASetIndexBuffer(it->IndexBuffer.Get(), it->IndexBufferFormat, 0);
 
@@ -417,6 +466,7 @@ void DemoScene::DrawScene()
 	XMMATRIX viewProj = m_Camera.GetView() * m_Camera.GetProj();
 	UINT stride = sizeof(GeometricPrimitive::VertexType);
 	UINT offset = 0;
+	ID3D11ShaderResourceView* nullSRV[16] = { 0 };
 
 	//====================================== Render to shadow map ===========================================//
 
@@ -438,16 +488,23 @@ void DemoScene::DrawScene()
 	static float roughness = 0.5f;
 	static float ao = 1.0f;
 	static float gamma = 2.2f;
+	static float ao_s = 1.0f;
+	static float ao_k = 2.0f;
+	static float ao_R = 1.0f;
+	static bool ao_enabled = true;
+	static bool ao_edgePreserving = true;
+	static bool aoBlur = true;
+	static float sigma = 2.5f;
 	//----------------------------------------------------//
 	
 	//
 	// Restore the back and depth buffer to the OM stage.
 	//
 	m_ImmediateContext->RSSetViewports(1, &m_ScreenViewport);
-	m_ImmediateContext->OMSetRenderTargets(BUFFER_COUNT, renderTargetViewArray, m_DepthStencilView.Get());
+	m_ImmediateContext->OMSetRenderTargets(BUFFER_COUNT, m_DeferredRTV, m_DepthStencilView.Get());
 
 	for (int i = 0; i < BUFFER_COUNT; ++i)
-		m_ImmediateContext->ClearRenderTargetView(renderTargetViewArray[i], DirectX::Colors::Black);
+		m_ImmediateContext->ClearRenderTargetView(m_DeferredRTV[i], DirectX::Colors::Black);
 	
 	m_ImmediateContext->ClearDepthStencilView(m_DepthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 
@@ -476,7 +533,7 @@ void DemoScene::DrawScene()
 		m_ImmediateContext->DrawIndexed(it->IndexCount, 0, 0);
 	}
 
-	auto it = m_DrawableSphere.get();
+	auto it = m_DrawableTetrahedron.get();
 	m_ImmediateContext->IASetVertexBuffers(0, 1, it->VertexBuffer.GetAddressOf(), &stride, &offset);
 	m_ImmediateContext->IASetIndexBuffer(it->IndexBuffer.Get(), it->IndexBufferFormat, 0);
 
@@ -498,32 +555,90 @@ void DemoScene::DrawScene()
 
 	m_Sky.Draw(m_ImmediateContext.Get(), m_CommonStates.get(), m_Camera.GetPosition3f(), viewProj);
 
+	//============================================ Ambient Occlusion buffer pass ====================================//
+
+	m_ImmediateContext->OMSetRenderTargets(1, m_AOMapRTV[0].GetAddressOf(), nullptr);
+	m_ImmediateContext->ClearRenderTargetView(m_AOMapRTV[0].Get(), DirectX::Colors::Blue);
+
+	m_AOScreenQuadEffect.Bind(m_ImmediateContext.Get());
+	m_AOScreenQuadEffect.SetGBuffers(m_ImmediateContext.Get(), BUFFER_COUNT, m_DeferredSRV);
+	m_AOScreenQuadEffect.SetCameraPosition(m_Camera.GetPosition3f());
+	m_AOScreenQuadEffect.SetScreenResolution(m_ClientWidth, m_ClientHeight);
+	m_AOScreenQuadEffect.SetAOData(ao_s, ao_k, ao_R);
+	m_AOScreenQuadEffect.SetSampler(m_ImmediateContext.Get(), m_CommonStates->PointClamp());
+	m_AOScreenQuadEffect.Apply(m_ImmediateContext.Get());
+	
+	stride = sizeof(ScreenQuadVertex);
+	m_ImmediateContext->IASetVertexBuffers(0, 1, m_ScreenQuadVB.GetAddressOf(), &stride, &offset);
+	m_ImmediateContext->IASetIndexBuffer(m_ScreenQuadIB.Get(), DXGI_FORMAT_R16_UINT, 0);
+	m_ImmediateContext->DrawIndexed(6, 0, 0);
+
+	//--------------------- Blur -------------------------------//
+
+	ImGui::Checkbox("AO Blur", &aoBlur);
+	ImGui::Checkbox("Edge Preserving Blur", &ao_edgePreserving);
+	ImGui::DragFloat("sigma", &sigma, 0.01f, 0.5f, 5.0f);
+	ImGui::DragFloat("AO_s", &ao_s, 0.01f, 0.0f, 10.0f);
+	ImGui::DragFloat("AO_k", &ao_k, 0.01f, 0.0f, 10.0f);
+	ImGui::DragFloat("AO_R", &ao_R, 0.01f, 0.0f, 10.0f);
+	ImGui::Checkbox("Ambient Occlusion", &ao_enabled);
+
+	if (aoBlur)
+	{
+		//Horizontal Blur
+		m_ImmediateContext->OMSetRenderTargets(1, m_AOMapRTV[1].GetAddressOf(), nullptr);
+		m_ImmediateContext->ClearRenderTargetView(m_AOMapRTV[1].Get(), DirectX::Colors::Green);
+
+		m_AOBlurEffect.Bind(m_ImmediateContext.Get());
+		m_AOBlurEffect.SetGBuffers(m_ImmediateContext.Get(), BUFFER_COUNT, m_DeferredSRV);
+		m_AOBlurEffect.SetScreenResolution(m_ClientWidth, m_ClientHeight);
+		m_AOBlurEffect.SetInputMap(m_ImmediateContext.Get(), m_AOMapSRV[0].Get());
+		m_AOBlurEffect.SetHorizontalBlur(true);
+		m_AOBlurEffect.CalculateBlurWeights(sigma);
+		m_AOBlurEffect.SetProjMatrix(m_Camera.GetProj());
+		m_AOBlurEffect.SetBlurEdgePreserve(ao_edgePreserving);
+		m_AOBlurEffect.Apply(m_ImmediateContext.Get());
+
+		m_ImmediateContext->DrawIndexed(6, 0, 0);
+
+		//Vertical Blur
+		m_ImmediateContext->PSSetShaderResources(0, 16, nullSRV);
+
+		m_ImmediateContext->OMSetRenderTargets(1, m_AOMapRTV[0].GetAddressOf(), nullptr);
+		m_ImmediateContext->ClearRenderTargetView(m_AOMapRTV[0].Get(), DirectX::Colors::Green);
+
+		m_AOBlurEffect.SetInputMap(m_ImmediateContext.Get(), m_AOMapSRV[1].Get());
+		m_AOBlurEffect.SetHorizontalBlur(false);
+		m_AOBlurEffect.Apply(m_ImmediateContext.Get());
+
+		m_ImmediateContext->DrawIndexed(6, 0, 0);
+	}
+	
+	//-----------------------------------------------------------//
+
 	//============================================ lighting pass ===================================================//
 	
 	Clear();
 	PrepareForRendering();
 
-	ID3D11ShaderResourceView* nullSRV[16] = { 0 };
-	m_ImmediateContext->PSSetShaderResources(0, 16, nullSRV);
-
-	//------------------ imgui junk ------------------------------------------------//
-
-	for (int i = 0; i < BUFFER_COUNT; ++i)
-		ImGui::Image(shaderResourceViewArray[i], ImVec2(400, 200));
+	////------------------ imgui junk ------------------------------------------------//
+	//for (int i = 0; i < BUFFER_COUNT; ++i)
+	//	ImGui::Image(m_DeferredSRV[i], ImVec2(400, 200));
+	//
+	for (int i = 0; i < NUM_AO_MAPS; ++i)
+	ImGui::Image(m_AOMapSRV[i].Get(), ImVec2(400, 200));
 	
-
 	ImGui::DragFloat3("Global light direction", reinterpret_cast<float*>(&m_DirLight.Direction), 0.05f, -1.0f, 1.0f);
-
 	ImGui::DragFloat("metallic", &metallic, 0.01f, 0.0f, 1.0f);
 	ImGui::DragFloat("roughness", &roughness, 0.01f, 0.0f, 1.0f);
 	ImGui::DragFloat("ao", &ao, 0.01f, 0.0f, 1.0f);
 	ImGui::DragFloat("gamma", &gamma, 0.01f, 1.0f, 2.2f);
-
 	ImGui::DragFloat("Range", &range, 0.5f, 1.0f, 1000.0f);
 	ImGui::DragFloat("sphereRadius", &sphereRadius, 0.5f, 1.0f, 1000.0f);
-
 	ImGui::DragFloat3("Center##1", reinterpret_cast<float*>(&m_SceneBounds.Center), 1.0f, -1000.0f, 1000.0f);
 	ImGui::DragFloat("Radius", &m_SceneBounds.Radius, 1.0f, 1.0f, 9000.0f);
+	ImGui::Image(m_ShadowMap->GetDepthMapSRV(), ImVec2(400, 200));
+
 	//-----------------------------------------------------------------------------//
 
 	float blend[4] = {1,1,1,1};
@@ -537,28 +652,30 @@ void DemoScene::DrawScene()
 
 	//--------------------- Draw full-screen quad -----------------------------------//
 	m_ScreenQuadEffect.Bind(m_ImmediateContext.Get());
-	m_ScreenQuadEffect.SetGBuffers(m_ImmediateContext.Get(), BUFFER_COUNT, shaderResourceViewArray);
+	m_ScreenQuadEffect.SetGBuffers(m_ImmediateContext.Get(), BUFFER_COUNT, m_DeferredSRV);
 	m_ScreenQuadEffect.SetIRMapAndEnvMap(m_ImmediateContext.Get(), m_IRCubeSRV.Get(), m_Sky.GetCubeMap());
+	m_ScreenQuadEffect.SetAOMap(m_ImmediateContext.Get(), m_AOMapSRV[0].Get());
 	m_ScreenQuadEffect.SetSampler(m_ImmediateContext.Get(), m_CommonStates->LinearWrap());
 	m_ScreenQuadEffect.SetGlobalLight(normalizedf, XMFLOAT3(1.0f, 1.0f, 1.0f));
 	m_ScreenQuadEffect.SetCameraPosition(m_Camera.GetPosition3f());
 	m_ScreenQuadEffect.SetHammersleyData(m_HammersleyData);
 	m_ScreenQuadEffect.SetScreenResolution(m_ClientWidth, m_ClientHeight);
+	m_ScreenQuadEffect.EnableAmbientOcclusion(ao_enabled);
 	m_ScreenQuadEffect.Apply(m_ImmediateContext.Get());
 
 	stride = sizeof(ScreenQuadVertex);
-	m_ImmediateContext->IASetVertexBuffers(0, 1, screenQuadVB.GetAddressOf(), &stride, &offset);
-	m_ImmediateContext->IASetIndexBuffer(screenQuadIB.Get(), DXGI_FORMAT_R16_UINT, 0);
+	m_ImmediateContext->IASetVertexBuffers(0, 1, m_ScreenQuadVB.GetAddressOf(), &stride, &offset);
+	m_ImmediateContext->IASetIndexBuffer(m_ScreenQuadIB.Get(), DXGI_FORMAT_R16_UINT, 0);
 	m_ImmediateContext->DrawIndexed(6, 0, 0);
 
 	//----------------------- Draw local lights --------------------------------------//
 	stride = sizeof(VertexPosition);
-	m_ImmediateContext->IASetVertexBuffers(0, 1, sphereMeshVB.GetAddressOf(), &stride, &offset);
-	m_ImmediateContext->IASetIndexBuffer(sphereMeshIB.Get(), DXGI_FORMAT_R16_UINT, 0);
+	m_ImmediateContext->IASetVertexBuffers(0, 1, m_SphereMeshVB.GetAddressOf(), &stride, &offset);
+	m_ImmediateContext->IASetIndexBuffer(m_SphereMeshIB.Get(), DXGI_FORMAT_R16_UINT, 0);
 	
 	m_LocalLightEffect.Bind(m_ImmediateContext.Get());
 	m_LocalLightEffect.SetCameraPosition(m_Camera.GetPosition3f());
-	m_LocalLightEffect.SetGBuffers(m_ImmediateContext.Get(), BUFFER_COUNT, shaderResourceViewArray);
+	m_LocalLightEffect.SetGBuffers(m_ImmediateContext.Get(), BUFFER_COUNT, m_DeferredSRV);
 
 	m_ImmediateContext->RSSetState(m_CommonStates->CullNone());
 	for (auto const& light : m_LocalLights)
@@ -571,13 +688,12 @@ void DemoScene::DrawScene()
 		m_LocalLightEffect.Apply(m_ImmediateContext.Get());
 		m_LocalLightEffect.ApplyPerFrameConstants(m_ImmediateContext.Get());
 
-		m_ImmediateContext->DrawIndexed(sphereMeshIndexCount, 0, 0);
+		m_ImmediateContext->DrawIndexed(m_SphereMeshIndexCount, 0, 0);
 		
 	}
 	ResetStates();
 	//---------------------------------------------------------------------------------//
 
-	//ImGui::Image(m_ShadowMap->GetDepthMapSRV(), ImVec2(400, 200));
 	m_ImmediateContext->PSSetShaderResources(0, 16, nullSRV);
 
 	Present();
@@ -594,7 +710,7 @@ void DemoScene::ResetStates()
 void DemoScene::HammersleyBlockSetup()
 {
 	m_HammersleyData.N = 40; 
-	m_HammersleyData.values.resize(m_HammersleyData.N * 2);
+	m_HammersleyData.Values.resize(m_HammersleyData.N * 2);
 
 	int kk;
 	int pos = 0;
@@ -608,8 +724,8 @@ void DemoScene::HammersleyBlockSetup()
 				u += p;
 		}
 		float v = (k + 0.5) / m_HammersleyData.N;
-		m_HammersleyData.values[pos++] = u;
-		m_HammersleyData.values[pos++] = v;
+		m_HammersleyData.Values[pos++] = u;
+		m_HammersleyData.Values[pos++] = v;
 	}
 
 }

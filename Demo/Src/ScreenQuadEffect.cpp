@@ -32,10 +32,22 @@ void ScreenQuadEffect::SetIRMapAndEnvMap(ID3D11DeviceContext* context, ID3D11Sha
 	context->PSSetShaderResources(BUFFER_COUNT, 2, maps);
 }
 
+void ScreenQuadEffect::SetAOMap(ID3D11DeviceContext* context, ID3D11ShaderResourceView* srv)
+{
+	context->PSSetShaderResources(6, 1, &srv);
+}
+
 
 void ScreenQuadEffect::SetSampler(ID3D11DeviceContext* context, ID3D11SamplerState* sampler)
 {
 	context->PSSetSamplers(0, 1, &sampler);
+}
+void ScreenQuadEffect::EnableAmbientOcclusion(bool enabled)
+{
+	if (enabled)
+		m_CbPerFrameData.useAO = 1.0f;
+	else
+		m_CbPerFrameData.useAO = -1.0f;
 }
 void ScreenQuadEffect::SetHammersleyData(HammerseleyData data)
 {
@@ -44,9 +56,9 @@ void ScreenQuadEffect::SetHammersleyData(HammerseleyData data)
 	for (int i = 0; i < 192; ++i)
 		m_CbPerFrameData.hammersley[i] = 0;
 
-	for (int i = 0; i < data.values.size(); ++i)
+	for (int i = 0; i < data.Values.size(); ++i)
 	{
-		m_CbPerFrameData.hammersley[i] = data.values[i];
+		m_CbPerFrameData.hammersley[i] = data.Values[i];
 	}
 }
 void ScreenQuadEffect::SetCameraPosition(DirectX::XMFLOAT3 camPos)

@@ -11,5 +11,5 @@ SamplerState gSampler : register(s0);
 
 float4 main(VertexOut pin) : SV_Target1
 {
-	return float4(gCubeMap.Sample(gSampler, pin.PosL).xyz, 0.4f);
+	return float4(gCubeMap.Sample(gSampler, pin.PosL).xyz, -1.0f);
 }

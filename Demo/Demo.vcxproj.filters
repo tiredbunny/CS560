@@ -207,6 +207,12 @@
     <ClCompile Include="Src\Blur.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Src\AOScreenQuadEffect.cpp">
+      <Filter>Source Files\Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\AOBlurEffect.cpp">
+      <Filter>Source Files\Effects</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Src\Shaders\SkyPS.hlsl">
@@ -244,6 +250,12 @@
     </FxCompile>
     <FxCompile Include="Src\Shaders\VertBlurCS.hlsl">
       <Filter>Shaders\Blur</Filter>
+    </FxCompile>
+    <FxCompile Include="Src\Shaders\AmbientScreenQuadPS.hlsl">
+      <Filter>Shaders\Deferred Shading\ScreenQuad</Filter>
+    </FxCompile>
+    <FxCompile Include="Src\Shaders\AmbientBlur.hlsl">
+      <Filter>Shaders\Deferred Shading\ScreenQuad</Filter>
     </FxCompile>
   </ItemGroup>
 </Project>

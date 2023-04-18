@@ -18,7 +18,7 @@ cbuffer cbPerFrame : register(b0)
 	float width;
 	float height;
 	float hamN;
-	float pad4;
+	float useAO;
 
 	float4 hammersley[48];
 }
@@ -31,8 +31,9 @@ Texture2D PBR : register(t3);
 TextureCube IRMap : register(t4);
 TextureCube EnvMap : register(t5);
 
-SamplerState Sampler : register(s0);
+Texture2D AOMap : register(t6);
 
+SamplerState Sampler : register(s0);
 
 float4 main(VertexOut pin) : SV_TARGET
 {
@@ -44,13 +45,17 @@ float4 main(VertexOut pin) : SV_TARGET
 
 	float metallic = PBRData.x;
 	float roughness = PBRData.y;
-	float ao = PBRData.z;
+    float ao = 1.0f;
+	
+    if (useAO > 0.0f)
+        ao = AOMap.Load(sampleIndex).x;
+	
 	float gammaExposure = PBRData.w;
 
 	float4 diff = Diffuse.Load(sampleIndex);
 	float3 albedo = pow(diff.xyz, gammaExposure);
 
-	if (diff.a == 0.4f)
+	if (diff.a < 0.0f)
 		return float4(albedo, 1.0f);
 
 	float3 N = normalize(normal);
@@ -61,21 +66,10 @@ float4 main(VertexOut pin) : SV_TARGET
 
 	float3 Lo = float3(0.0, 0.0f, 0.0);
 
-	// calculate per-light radiance
 	float3 L = -lightDir; 
 	float3 H = normalize(V + L);
-
-	//float3 radiance = lightColor;
-
-	// Cook-Torrance BRDF
-	/*float NDF = DistributionGGX(N, H, roughness);
-	float G = GeometrySmith(N, V, L, roughness);
-	float3 F = fresnelSchlick(clamp(dot(H, V), 0.0, 1.0), F0);
-
-	float3 numerator = NDF * G * F;
-	float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001; */
+	
 	float3 specular = float3(0,0,0);
-
 
 	float3 kS = fresnelSchlickRoughness(max(dot(N, V), 0.0), F0, roughness);
 	float3 kD = float3(1.0, 1.0f, 1.0f) - kS;
@@ -83,7 +77,7 @@ float4 main(VertexOut pin) : SV_TARGET
 
 
 	float3 irradiance = IRMap.Sample(Sampler, N).rgb;
-	float3 diffuse = (kD * albedo / 3.14159265359) * irradiance;//irradiance * albedo;
+	float3 diffuse = (kD * albedo / 3.14159265359) * irradiance;
 
 
 	float3 R = 2 * dot(N, V) * N - V;
@@ -93,7 +87,6 @@ float4 main(VertexOut pin) : SV_TARGET
 	for (int i = 0; i < hamN * 2; i += 2)
 	{
 		float val1 = ((float[4])(hammersley[i / 4]))[i % 4];
-		//float val2 = ((float[4])(hammersley[(i+1) / 4]))[(i+1) % 4];
 
 		float theta = atan(roughness * sqrt(val1) / sqrt(1 - val1));
 
@@ -111,7 +104,7 @@ float4 main(VertexOut pin) : SV_TARGET
 
 		float level = 0.5 * log2(width * height / hamN) - 0.5 * log2(DistributionGGX(H, N, roughness));
 
-		float3 Li = EnvMap.Sample(Sampler, wK, level).rgb;
+		float3 Li = EnvMap.SampleLevel(Sampler, wK, level).rgb;
 
 		specular += cos(theta) * Li * GeometrySmith(N, V, wK, roughness) * fresnelSchlick(max(dot(wK, H), 0.0), kS) / (4.0 * max(dot(N, V), 0.0) * max(dot(N, wK), 0.0) + 0.0001);
 	}
@@ -123,7 +116,7 @@ float4 main(VertexOut pin) : SV_TARGET
 
 	float3 color = ambient;
 
-	color += Lo;
+	color = Lo;
 
 	color = color / (color + float3(1.0f, 1.0f, 1.0f));
 	color = pow(color, 1.0f / gammaExposure);

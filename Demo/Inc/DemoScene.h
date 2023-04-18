@@ -15,19 +15,20 @@
 
 struct Drawable;
 
-auto constexpr BUFFER_COUNT = 4;
+static const int BUFFER_COUNT = 4;
+
 
 struct LocalLight
 {
 	DirectX::XMFLOAT3 LightPos;
 	DirectX::XMFLOAT3 LightColor;
-	float range;
+	float Range;
 };
 
 struct HammerseleyData
 {
 	float N;
-	std::vector<float> values;
+	std::vector<float> Values;
 };
 
 class DemoScene : public DemoBase
@@ -36,7 +37,7 @@ private:
 	using Super = DemoBase;
 
 	std::unique_ptr<Drawable> m_DrawableGrid;
-	std::unique_ptr<Drawable> m_DrawableSphere;
+	std::unique_ptr<Drawable> m_DrawableTetrahedron;
 
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_RSFrontCounterCW;
 
@@ -48,10 +49,10 @@ private:
 	HammerseleyData m_HammersleyData;
 
 	//deferred shading stuff
-	ID3D11RenderTargetView* renderTargetViewArray[BUFFER_COUNT];
-	ID3D11ShaderResourceView* shaderResourceViewArray[BUFFER_COUNT];
-	Microsoft::WRL::ComPtr<ID3D11Buffer> screenQuadVB;
-	Microsoft::WRL::ComPtr<ID3D11Buffer> screenQuadIB;
+	ID3D11RenderTargetView* m_DeferredRTV[BUFFER_COUNT];
+	ID3D11ShaderResourceView* m_DeferredSRV[BUFFER_COUNT];
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_ScreenQuadVB;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_ScreenQuadIB;
 
 	RenderGBuffersEffect m_BasicEffect;
 	ScreenQuadEffect m_ScreenQuadEffect;
@@ -59,17 +60,25 @@ private:
 
 	std::vector<LocalLight> m_LocalLights;
 	std::vector<PBRMaterial> m_Materials;
+
+	//Ambient occlusion pass stuff
+	static const int NUM_AO_MAPS = 2;
+	AOScreenQuadEffect m_AOScreenQuadEffect;
+	AOBlurEffect m_AOBlurEffect;
+	std::vector<Microsoft::WRL::ComPtr<ID3D11RenderTargetView>> m_AOMapRTV;
+	std::vector<Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>> m_AOMapSRV;
+
 	//Sphere mesh
-	Microsoft::WRL::ComPtr<ID3D11Buffer> sphereMeshVB;
-	Microsoft::WRL::ComPtr<ID3D11Buffer> sphereMeshIB;
-	UINT sphereMeshIndexCount;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_SphereMeshVB;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> m_SphereMeshIB;
+	UINT m_SphereMeshIndexCount;
 
 	//Shadows stuff
 	std::unique_ptr<ShadowMap> m_ShadowMap;
 	std::unique_ptr<BlurFilter> m_BlurFilter;
 	DirectX::BoundingSphere m_SceneBounds;
 
-	static const int m_ShadowMapSize = 2048;
+	const int m_ShadowMapSize = 2048;
 	DirectX::XMFLOAT4X4 m_LightView;
 	DirectX::XMFLOAT4X4 m_LightProj;
 	DirectX::XMFLOAT4X4 m_ShadowTransform;
@@ -101,8 +110,10 @@ private:
 	void Clear();
 	void Present();
 	bool CreateDeviceDependentResources();
-	void CreateBuffers();
+	void CreateGeometryBuffers();
 	void CreateDeferredBuffers();
+	void CreateAmbientOcclusionBuffer();
+
 	void PrepareForRendering();
 	void ResetStates();
 	
