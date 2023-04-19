@@ -15,7 +15,7 @@
 
 struct Drawable;
 
-static const int BUFFER_COUNT = 4;
+static const int BUFFER_COUNT = 5;
 
 
 struct LocalLight
@@ -39,8 +39,6 @@ private:
 	std::unique_ptr<Drawable> m_DrawableGrid;
 	std::unique_ptr<Drawable> m_DrawableTetrahedron;
 
-	Microsoft::WRL::ComPtr<ID3D11RasterizerState> m_RSFrontCounterCW;
-
 	DirectionalLight m_DirLight;
 
 	//Skybox / IBL stuff
@@ -48,9 +46,13 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_IRCubeSRV;
 	HammerseleyData m_HammersleyData;
 
-	//deferred shading stuff
+	//deferred shading stuff & bloom
 	ID3D11RenderTargetView* m_DeferredRTV[BUFFER_COUNT];
 	ID3D11ShaderResourceView* m_DeferredSRV[BUFFER_COUNT];
+
+	Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView> m_BrightColorsUAV; //last buffer in G-buffers array
+	std::unique_ptr<BlurFilter> m_BloomBlur;
+
 	Microsoft::WRL::ComPtr<ID3D11Buffer> m_ScreenQuadVB;
 	Microsoft::WRL::ComPtr<ID3D11Buffer> m_ScreenQuadIB;
 
@@ -60,13 +62,6 @@ private:
 
 	std::vector<LocalLight> m_LocalLights;
 	std::vector<PBRMaterial> m_Materials;
-
-	//Ambient occlusion pass stuff
-	static const int NUM_AO_MAPS = 2;
-	AOScreenQuadEffect m_AOScreenQuadEffect;
-	AOBlurEffect m_AOBlurEffect;
-	std::vector<Microsoft::WRL::ComPtr<ID3D11RenderTargetView>> m_AOMapRTV;
-	std::vector<Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>> m_AOMapSRV;
 
 	//Sphere mesh
 	Microsoft::WRL::ComPtr<ID3D11Buffer> m_SphereMeshVB;
@@ -112,7 +107,6 @@ private:
 	bool CreateDeviceDependentResources();
 	void CreateGeometryBuffers();
 	void CreateDeferredBuffers();
-	void CreateAmbientOcclusionBuffer();
 
 	void PrepareForRendering();
 	void ResetStates();

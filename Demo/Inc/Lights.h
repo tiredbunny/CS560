@@ -9,6 +9,8 @@ struct PBRMaterial
 	float Metallic;
 	float Roughness;
 	float Ao;
+
+	DirectX::XMFLOAT4 SolidColor;
 };
 
 struct DirectionalLight

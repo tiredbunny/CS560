@@ -66,6 +66,8 @@ DemoScene::DemoScene(const HWND& hwnd) :
 			light.LightPos = XMFLOAT3((i * 10) - 50.0f, 4.0f, (j * 10) - 40.0f);
 			light.LightColor = XMFLOAT3(MathHelper::RandF(), MathHelper::RandF(), MathHelper::RandF());
 			light.Range = MathHelper::RandF(10.0f, 40.0f);
+			
+			mat.SolidColor = XMFLOAT4(MathHelper::RandF(0.0f, 10.0f), MathHelper::RandF(0.0f, 10.0f), MathHelper::RandF(0.0f, 10.0f), 1.0f);
 
 			m_LocalLights.push_back(light);
 			m_Materials.push_back(mat);
@@ -88,7 +90,7 @@ DemoScene::~DemoScene()
 bool DemoScene::CreateDeviceDependentResources()
 {
 
-	m_Sky.Create(m_Device.Get(), L"Textures\\skybox1.dds", 3000.0f);
+	m_Sky.Create(m_Device.Get(), L"Textures\\grasscube1024.dds", 3000.0f);
 
 	DX::ThrowIfFailed(
 		CreateDDSTextureFromFile(m_Device.Get(), m_ImmediateContext.Get(), L"Textures\\skybox1IR.dds", 0, m_IRCubeSRV.ReleaseAndGetAddressOf())
@@ -114,8 +116,7 @@ bool DemoScene::CreateDeviceDependentResources()
 			layoutPosTex.ReleaseAndGetAddressOf())
 	);
 	m_ScreenQuadEffect.Create(m_Device.Get(), layoutPosTex);
-	m_AOScreenQuadEffect.Create(m_Device.Get(), layoutPosTex);
-	m_AOBlurEffect.Create(m_Device.Get(), layoutPosTex);
+
 
 	Microsoft::WRL::ComPtr<ID3D11InputLayout> layoutPos;
 	DX::ThrowIfFailed
@@ -143,6 +144,7 @@ bool DemoScene::CreateDeviceDependentResources()
 	m_CommonStates = std::make_unique<CommonStates>(m_Device.Get());
 
 	m_BlurFilter = std::make_unique<BlurFilter>(m_Device.Get(), m_ShadowMapSize, m_ShadowMapSize, DXGI_FORMAT_R32G32B32A32_FLOAT);
+	m_BloomBlur = std::make_unique<BlurFilter>(m_Device.Get(), m_ClientWidth, m_ClientHeight, DXGI_FORMAT_R16G16B16A16_FLOAT);
 	
 #pragma region Load Textures
 	if FAILED(CreateDDSTextureFromFile(m_Device.Get(), m_ImmediateContext.Get(), L"Textures\\floor.dds", 0, m_DrawableGrid->TextureSRV.ReleaseAndGetAddressOf()))
@@ -152,22 +154,11 @@ bool DemoScene::CreateDeviceDependentResources()
 		return false;
 #pragma endregion
 
-#pragma region States Creation
-	CD3D11_DEFAULT d3dDefault;
-	{
-		CD3D11_RASTERIZER_DESC desc(d3dDefault);
-		desc.FrontCounterClockwise = TRUE;
-
-		if FAILED(m_Device->CreateRasterizerState(&desc, m_RSFrontCounterCW.ReleaseAndGetAddressOf()))
-			return false;
-	}
-#pragma endregion
 
 	CreateGeometryBuffers();
 
 	CreateDeferredBuffers();
 
-	CreateAmbientOcclusionBuffer();
 
 	return true;
 }
@@ -193,6 +184,9 @@ void DemoScene::CreateDeferredBuffers()
 
 	for (int i = 0; i < BUFFER_COUNT; i++)
 	{
+		if (i == BUFFER_COUNT - 1)
+			textureDesc.BindFlags |= D3D11_BIND_UNORDERED_ACCESS;
+
 		DX::ThrowIfFailed(
 			m_Device->CreateTexture2D(&textureDesc, NULL, &texArray[i])
 			);
@@ -225,62 +219,14 @@ void DemoScene::CreateDeferredBuffers()
 		);
 	}
 
-}
+	D3D11_UNORDERED_ACCESS_VIEW_DESC uavDesc = {};
+	uavDesc.Format = textureDesc.Format;
+	uavDesc.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+	uavDesc.Texture2D.MipSlice = 0;
 
-void DemoScene::CreateAmbientOcclusionBuffer()
-{
-
-	m_AOMapRTV.resize(NUM_AO_MAPS);
-	m_AOMapSRV.resize(NUM_AO_MAPS);
-
-	D3D11_TEXTURE2D_DESC textureDesc = {};
-
-	textureDesc.Width = m_ClientWidth;
-	textureDesc.Height = m_ClientHeight;
-	textureDesc.MipLevels = 1;
-	textureDesc.ArraySize = 1;
-	textureDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
-	textureDesc.SampleDesc.Count = 1;
-	textureDesc.SampleDesc.Quality = 0;
-	textureDesc.Usage = D3D11_USAGE_DEFAULT;
-	textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
-	textureDesc.CPUAccessFlags = 0;
-	textureDesc.MiscFlags = 0;
-
-	std::vector<Microsoft::WRL::ComPtr<ID3D11Texture2D>> texture(NUM_AO_MAPS);
-
-	for (int i = 0; i < NUM_AO_MAPS; ++i)
-	{
-		DX::ThrowIfFailed(
-			m_Device->CreateTexture2D(&textureDesc, NULL, &texture[i])
+	DX::ThrowIfFailed(
+		m_Device->CreateUnorderedAccessView(texArray[BUFFER_COUNT - 1].Get(), &uavDesc, &m_BrightColorsUAV)
 		);
-	}
-
-	D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc = {};
-	renderTargetViewDesc.Format = textureDesc.Format;
-	renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-	renderTargetViewDesc.Texture2D.MipSlice = 0;
-
-	for (int i = 0; i < NUM_AO_MAPS; ++i)
-	{
-		DX::ThrowIfFailed(
-			m_Device->CreateRenderTargetView(texture[i].Get(), &renderTargetViewDesc, &m_AOMapRTV[i])
-		);
-
-	}
-
-	D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc = {};
-	shaderResourceViewDesc.Format = textureDesc.Format;
-	shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-	shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
-	shaderResourceViewDesc.Texture2D.MipLevels = 1;
-
-	for (int i = 0; i < NUM_AO_MAPS; ++i)
-	{
-		DX::ThrowIfFailed(
-			m_Device->CreateShaderResourceView(texture[i].Get(), &shaderResourceViewDesc, &m_AOMapSRV[i])
-		);
-	}
 }
 
 void DemoScene::CreateGeometryBuffers()
@@ -302,7 +248,7 @@ void DemoScene::CreateGeometryBuffers()
 	Helpers::CreateMeshBuffer(m_Device.Get(), indices, D3D11_BIND_INDEX_BUFFER, &m_SphereMeshIB);
 
 
-	GeometricPrimitive::CreateTetrahedron(vertices, indices, 6.0f, false);
+	GeometricPrimitive::CreateTeapot(vertices, indices, 6.0f, 8, false);
 	m_DrawableTetrahedron->Create(m_Device.Get(), vertices, indices);
 
 	ScreenQuadVertex screenQuadVertices[] =
@@ -488,13 +434,8 @@ void DemoScene::DrawScene()
 	static float roughness = 0.5f;
 	static float ao = 1.0f;
 	static float gamma = 2.2f;
-	static float ao_s = 1.0f;
-	static float ao_k = 2.0f;
-	static float ao_R = 1.0f;
-	static bool ao_enabled = true;
-	static bool ao_edgePreserving = true;
-	static bool aoBlur = true;
-	static float sigma = 2.5f;
+	static int bloomBlurSize = 1;
+	static float bloomBrightness = 0.1f;
 	//----------------------------------------------------//
 	
 	//
@@ -514,8 +455,9 @@ void DemoScene::DrawScene()
 	m_BasicEffect.SetShadowMap(m_ImmediateContext.Get(), m_ShadowMap->GetDepthMapSRV());
 	m_BasicEffect.SetShadowSampler(m_ImmediateContext.Get(), m_ShadowMap->GetShadowSampler());
 	m_BasicEffect.EnableMomentShadowMap(true);
-	
+	m_BasicEffect.SetSolidColor(XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f));
 	m_BasicEffect.SetPBRProperties(metallic, roughness, ao, gamma);
+	m_BasicEffect.SetBloomExtractBrightness(bloomBrightness);
 	m_BasicEffect.ApplyPerFrameConstants(m_ImmediateContext.Get());
 
 	static Drawable* drawables[] = { m_DrawableGrid.get()};
@@ -547,6 +489,7 @@ void DemoScene::DrawScene()
 		m_BasicEffect.SetPBRProperties(mat.Metallic, mat.Roughness, mat.Ao, gamma);
 		m_BasicEffect.SetWorld(world);
 		m_BasicEffect.SetWorldViewProj(world * viewProj);	
+		m_BasicEffect.SetSolidColor(m_Materials[i].SolidColor);
 		m_BasicEffect.Apply(m_ImmediateContext.Get());
 		m_BasicEffect.ApplyPerFrameConstants(m_ImmediateContext.Get());
 
@@ -555,86 +498,28 @@ void DemoScene::DrawScene()
 
 	m_Sky.Draw(m_ImmediateContext.Get(), m_CommonStates.get(), m_Camera.GetPosition3f(), viewProj);
 
-	//============================================ Ambient Occlusion buffer pass ====================================//
-
-	m_ImmediateContext->OMSetRenderTargets(1, m_AOMapRTV[0].GetAddressOf(), nullptr);
-	m_ImmediateContext->ClearRenderTargetView(m_AOMapRTV[0].Get(), DirectX::Colors::Blue);
-
-	m_AOScreenQuadEffect.Bind(m_ImmediateContext.Get());
-	m_AOScreenQuadEffect.SetGBuffers(m_ImmediateContext.Get(), BUFFER_COUNT, m_DeferredSRV);
-	m_AOScreenQuadEffect.SetCameraPosition(m_Camera.GetPosition3f());
-	m_AOScreenQuadEffect.SetScreenResolution(m_ClientWidth, m_ClientHeight);
-	m_AOScreenQuadEffect.SetAOData(ao_s, ao_k, ao_R);
-	m_AOScreenQuadEffect.SetSampler(m_ImmediateContext.Get(), m_CommonStates->PointClamp());
-	m_AOScreenQuadEffect.Apply(m_ImmediateContext.Get());
-	
-	stride = sizeof(ScreenQuadVertex);
-	m_ImmediateContext->IASetVertexBuffers(0, 1, m_ScreenQuadVB.GetAddressOf(), &stride, &offset);
-	m_ImmediateContext->IASetIndexBuffer(m_ScreenQuadIB.Get(), DXGI_FORMAT_R16_UINT, 0);
-	m_ImmediateContext->DrawIndexed(6, 0, 0);
-
-	//--------------------- Blur -------------------------------//
-
-	ImGui::Checkbox("AO Blur", &aoBlur);
-	ImGui::Checkbox("Edge Preserving Blur", &ao_edgePreserving);
-	ImGui::DragFloat("sigma", &sigma, 0.01f, 0.5f, 5.0f);
-	ImGui::DragFloat("AO_s", &ao_s, 0.01f, 0.0f, 10.0f);
-	ImGui::DragFloat("AO_k", &ao_k, 0.01f, 0.0f, 10.0f);
-	ImGui::DragFloat("AO_R", &ao_R, 0.01f, 0.0f, 10.0f);
-	ImGui::Checkbox("Ambient Occlusion", &ao_enabled);
-
-	if (aoBlur)
-	{
-		//Horizontal Blur
-		m_ImmediateContext->OMSetRenderTargets(1, m_AOMapRTV[1].GetAddressOf(), nullptr);
-		m_ImmediateContext->ClearRenderTargetView(m_AOMapRTV[1].Get(), DirectX::Colors::Green);
-
-		m_AOBlurEffect.Bind(m_ImmediateContext.Get());
-		m_AOBlurEffect.SetGBuffers(m_ImmediateContext.Get(), BUFFER_COUNT, m_DeferredSRV);
-		m_AOBlurEffect.SetScreenResolution(m_ClientWidth, m_ClientHeight);
-		m_AOBlurEffect.SetInputMap(m_ImmediateContext.Get(), m_AOMapSRV[0].Get());
-		m_AOBlurEffect.SetHorizontalBlur(true);
-		m_AOBlurEffect.CalculateBlurWeights(sigma);
-		m_AOBlurEffect.SetProjMatrix(m_Camera.GetProj());
-		m_AOBlurEffect.SetBlurEdgePreserve(ao_edgePreserving);
-		m_AOBlurEffect.Apply(m_ImmediateContext.Get());
-
-		m_ImmediateContext->DrawIndexed(6, 0, 0);
-
-		//Vertical Blur
-		m_ImmediateContext->PSSetShaderResources(0, 16, nullSRV);
-
-		m_ImmediateContext->OMSetRenderTargets(1, m_AOMapRTV[0].GetAddressOf(), nullptr);
-		m_ImmediateContext->ClearRenderTargetView(m_AOMapRTV[0].Get(), DirectX::Colors::Green);
-
-		m_AOBlurEffect.SetInputMap(m_ImmediateContext.Get(), m_AOMapSRV[1].Get());
-		m_AOBlurEffect.SetHorizontalBlur(false);
-		m_AOBlurEffect.Apply(m_ImmediateContext.Get());
-
-		m_ImmediateContext->DrawIndexed(6, 0, 0);
-	}
-	
-	//-----------------------------------------------------------//
-
 	//============================================ lighting pass ===================================================//
 	
 	Clear();
 	PrepareForRendering();
 
-	////------------------ imgui junk ------------------------------------------------//
+	for (int i = 0; i < bloomBlurSize; ++i)
+		m_BloomBlur->BlurInPlace(m_ImmediateContext.Get(), m_DeferredSRV[BUFFER_COUNT - 1], m_BrightColorsUAV.Get());
+
+	//------------------ imgui junk ------------------------------------------------//
+	ImGui::DragInt("Bloom Blur", &bloomBlurSize, 1.0f, 0.0f, 30);
+	ImGui::DragFloat("Bloom Brightness", &bloomBrightness, 0.01f, 0.0f, 1.0f);
 	//for (int i = 0; i < BUFFER_COUNT; ++i)
-	//	ImGui::Image(m_DeferredSRV[i], ImVec2(400, 200));
-	//
-	for (int i = 0; i < NUM_AO_MAPS; ++i)
-	ImGui::Image(m_AOMapSRV[i].Get(), ImVec2(400, 200));
+		ImGui::Image(m_DeferredSRV[BUFFER_COUNT - 1], ImVec2(400, 200));
 	
+
 	ImGui::DragFloat3("Global light direction", reinterpret_cast<float*>(&m_DirLight.Direction), 0.05f, -1.0f, 1.0f);
 	ImGui::DragFloat("metallic", &metallic, 0.01f, 0.0f, 1.0f);
 	ImGui::DragFloat("roughness", &roughness, 0.01f, 0.0f, 1.0f);
 	ImGui::DragFloat("ao", &ao, 0.01f, 0.0f, 1.0f);
 	ImGui::DragFloat("gamma", &gamma, 0.01f, 1.0f, 2.2f);
-	ImGui::DragFloat("Range", &range, 0.5f, 1.0f, 1000.0f);
-	ImGui::DragFloat("sphereRadius", &sphereRadius, 0.5f, 1.0f, 1000.0f);
+	//ImGui::DragFloat("Range", &range, 0.5f, 1.0f, 1000.0f);
+	//ImGui::DragFloat("sphereRadius", &sphereRadius, 0.5f, 1.0f, 1000.0f);
 	ImGui::DragFloat3("Center##1", reinterpret_cast<float*>(&m_SceneBounds.Center), 1.0f, -1000.0f, 1000.0f);
 	ImGui::DragFloat("Radius", &m_SceneBounds.Radius, 1.0f, 1.0f, 9000.0f);
 	ImGui::Image(m_ShadowMap->GetDepthMapSRV(), ImVec2(400, 200));
@@ -654,13 +539,11 @@ void DemoScene::DrawScene()
 	m_ScreenQuadEffect.Bind(m_ImmediateContext.Get());
 	m_ScreenQuadEffect.SetGBuffers(m_ImmediateContext.Get(), BUFFER_COUNT, m_DeferredSRV);
 	m_ScreenQuadEffect.SetIRMapAndEnvMap(m_ImmediateContext.Get(), m_IRCubeSRV.Get(), m_Sky.GetCubeMap());
-	m_ScreenQuadEffect.SetAOMap(m_ImmediateContext.Get(), m_AOMapSRV[0].Get());
 	m_ScreenQuadEffect.SetSampler(m_ImmediateContext.Get(), m_CommonStates->LinearWrap());
 	m_ScreenQuadEffect.SetGlobalLight(normalizedf, XMFLOAT3(1.0f, 1.0f, 1.0f));
 	m_ScreenQuadEffect.SetCameraPosition(m_Camera.GetPosition3f());
 	m_ScreenQuadEffect.SetHammersleyData(m_HammersleyData);
 	m_ScreenQuadEffect.SetScreenResolution(m_ClientWidth, m_ClientHeight);
-	m_ScreenQuadEffect.EnableAmbientOcclusion(ao_enabled);
 	m_ScreenQuadEffect.Apply(m_ImmediateContext.Get());
 
 	stride = sizeof(ScreenQuadVertex);

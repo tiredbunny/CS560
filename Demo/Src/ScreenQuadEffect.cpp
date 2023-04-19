@@ -34,7 +34,7 @@ void ScreenQuadEffect::SetIRMapAndEnvMap(ID3D11DeviceContext* context, ID3D11Sha
 
 void ScreenQuadEffect::SetAOMap(ID3D11DeviceContext* context, ID3D11ShaderResourceView* srv)
 {
-	context->PSSetShaderResources(6, 1, &srv);
+	context->PSSetShaderResources(BUFFER_COUNT + 2, 1, &srv);
 }
 
 

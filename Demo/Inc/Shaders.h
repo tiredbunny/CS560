@@ -69,13 +69,15 @@ private:
 	struct PS_CbPerFrame
 	{
 		float ShadowMethod;
-		DirectX::XMFLOAT3 pad;
+		float BloomBrightness;
+		DirectX::XMFLOAT2 pad;
 
 		float metallic;
 		float roughness;
 		float ao;
 		float gammaExposure;
 
+		DirectX::XMFLOAT4 SolidColor;
 	} m_CbPerFrameData;
 
 	static_assert(sizeof(PS_CbPerFrame) % 16 == 0, "struct not 16-byte aligned");
@@ -99,10 +101,10 @@ public:
 	void SetWorldViewProj(DirectX::FXMMATRIX worldViewProj);
 	void SetTextureTransform(DirectX::FXMMATRIX texTransform);
 	void SetPBRProperties(float metallic, float roughness, float ao, float gammaExposure);
-
+	void SetSolidColor(DirectX::XMFLOAT4 color);
 	void SetShadowTransform(DirectX::FXMMATRIX shadowTransform);
 	void SetShadowSampler(ID3D11DeviceContext* context, ID3D11SamplerState* sampler);
-	
+	void SetBloomExtractBrightness(float brightness);
 	void EnableMomentShadowMap(bool flag);
 
 	void Apply(ID3D11DeviceContext* context);

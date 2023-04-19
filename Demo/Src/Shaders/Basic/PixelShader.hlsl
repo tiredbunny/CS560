@@ -4,12 +4,15 @@
 cbuffer cbPerFrame : register(b0)
 {
     float ShadowMethod;
-    float3 pad;
+    float bloomBrightness;
+    float2 pad;
 
     float metallic;
     float roughness;
     float ao;
     float gammaExposure;
+    
+    float4 solidColor;
 };
 
 
@@ -34,6 +37,7 @@ struct PixelShaderOutput
     float4 Diffuse				: SV_Target1;			
     float4 Position				: SV_Target2;
     float4 PBRData              : SV_Target3;
+    float4 BrightColors         : SV_Target4;
 };
 
 PixelShaderOutput main(VertexOut pin)
@@ -55,9 +59,16 @@ PixelShaderOutput main(VertexOut pin)
 
     PixelShaderOutput output;
     output.Normal = float4(pin.NormalW, pin.PosH.z);
-    output.Diffuse = DiffuseMap.Sample(Sampler, pin.Tex);
+    output.Diffuse = float4(solidColor.xyz, 1.0f); // DiffuseMap.Sample(Sampler, pin.Tex);
     output.Position = float4(pin.PosW, fPercentLit);
     output.PBRData = float4(metallic, roughness, ao, gammaExposure);
 
+    float brightness = dot(output.Diffuse.xyz, float3(0.2126, 0.7152, 0.0722));
+    
+    if (brightness > 1.0)
+        output.BrightColors = float4(output.Diffuse.xyz * bloomBrightness, 1.0f);
+    else
+        output.BrightColors = float4(0.0, 0.0, 0.0, 1.0);
+    
     return output;
 }

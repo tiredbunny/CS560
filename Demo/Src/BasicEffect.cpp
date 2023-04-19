@@ -40,6 +40,11 @@ void RenderGBuffersEffect::SetPBRProperties(float metallic, float roughness, flo
 	m_CbPerFrameData.gammaExposure = gammaExposure;
 }
 
+void RenderGBuffersEffect::SetSolidColor(DirectX::XMFLOAT4 color)
+{
+	m_CbPerFrameData.SolidColor = color;
+}
+
 void RenderGBuffersEffect::SetShadowTransform(DirectX::FXMMATRIX transform)
 {
 	m_CbPerObjectData.ShadowTransform = Helpers::XMMatrixToStorage(transform);
@@ -48,6 +53,11 @@ void RenderGBuffersEffect::SetShadowTransform(DirectX::FXMMATRIX transform)
 void RenderGBuffersEffect::SetShadowSampler(ID3D11DeviceContext* context, ID3D11SamplerState* sampler)
 {
 	context->PSSetSamplers(1, 1, &sampler);
+}
+
+void RenderGBuffersEffect::SetBloomExtractBrightness(float brightness)
+{
+	m_CbPerFrameData.BloomBrightness = brightness;
 }
 
 void RenderGBuffersEffect::EnableMomentShadowMap(bool flag)
